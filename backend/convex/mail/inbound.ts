@@ -99,6 +99,7 @@ export const recordInbound = internalMutation({
       duplicate: false as const,
       messageId,
       threadId: thread._id,
+      caseId: thread.caseId,
       hasCase: thread.caseId !== undefined,
     };
   },

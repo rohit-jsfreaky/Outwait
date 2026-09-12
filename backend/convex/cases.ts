@@ -4,6 +4,10 @@ import { query } from "./_generated/server";
 /**
  * The board. One reactive query drives the whole screen, so when an email
  * lands the webhook writes a row and every open board moves by itself.
+ *
+ * It returns three things together — the cases, what is waiting on a human,
+ * and the live feed — because they all change on the same event and one
+ * subscription is cheaper and simpler than three.
  */
 export const board = query({
   args: {},
@@ -14,12 +18,30 @@ export const board = query({
       .order("desc")
       .take(50);
 
-    const withTracks = await Promise.all(
+    const withDetail = await Promise.all(
       cases.map(async (c) => {
-        const tracks = await ctx.db
-          .query("tracks")
-          .withIndex("by_caseId", (q) => q.eq("caseId", c._id))
-          .take(12);
+        const [tracks, evidence] = await Promise.all([
+          ctx.db
+            .query("tracks")
+            .withIndex("by_caseId", (q) => q.eq("caseId", c._id))
+            .take(12),
+          ctx.db
+            .query("evidence")
+            .withIndex("by_caseId", (q) => q.eq("caseId", c._id))
+            .order("desc")
+            .take(6),
+        ]);
+
+        const files = await Promise.all(
+          evidence.map(async (e) => ({
+            _id: e._id,
+            kind: e.kind,
+            name: e.locator ?? "file",
+            at: e.at,
+            url: e.storageId ? await ctx.storage.getUrl(e.storageId) : null,
+          })),
+        );
+
         return {
           _id: c._id,
           title: c.title,
@@ -37,15 +59,38 @@ export const board = query({
             state: t.state,
             detail: t.detail,
           })),
+          evidence: files,
         };
       }),
     );
 
-    // The live feed. Same query, so one subscription covers both.
+    const openAsks = await ctx.db
+      .query("asks")
+      .withIndex("by_state", (q) => q.eq("state", "open"))
+      .order("desc")
+      .take(10);
+
+    const waiting = await Promise.all(
+      openAsks.map(async (a) => {
+        const c = await ctx.db.get("cases", a.caseId);
+        return {
+          _id: a._id,
+          caseId: a.caseId,
+          caseTitle: c?.title ?? "Unknown case",
+          kind: a.kind,
+          question: a.question,
+          why: a.why,
+          askedAt: a.askedAt,
+          remindersSent: a.remindersSent,
+        };
+      }),
+    );
+
     const feed = await ctx.db.query("events").withIndex("by_at").order("desc").take(25);
 
     return {
-      cases: withTracks,
+      cases: withDetail,
+      waiting,
       feed: feed.map((e) => ({
         _id: e._id,
         caseId: e.caseId,
@@ -63,7 +108,7 @@ export const get = query({
     const c = await ctx.db.get("cases", args.caseId);
     if (!c) return null;
 
-    const [tracks, messages, events] = await Promise.all([
+    const [tracks, messages, events, evidence] = await Promise.all([
       ctx.db
         .query("tracks")
         .withIndex("by_caseId", (q) => q.eq("caseId", args.caseId))
@@ -78,8 +123,13 @@ export const get = query({
         .withIndex("by_caseId", (q) => q.eq("caseId", args.caseId))
         .order("desc")
         .take(40),
+      ctx.db
+        .query("evidence")
+        .withIndex("by_caseId", (q) => q.eq("caseId", args.caseId))
+        .order("desc")
+        .take(20),
     ]);
 
-    return { case: c, tracks, messages, events };
+    return { case: c, tracks, messages, events, evidence };
   },
 });

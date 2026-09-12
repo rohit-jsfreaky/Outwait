@@ -21,8 +21,8 @@ const trackTone: Record<string, string> = {
   ready: 'text-stone-500',
   running: 'text-emerald-700',
   blocked: 'text-amber-700',
-  done: 'text-stone-400 line-through',
-  abandoned: 'text-stone-400 line-through',
+  done: 'text-stone-400',
+  abandoned: 'text-stone-400',
 }
 
 const statusLabel: Record<string, string> = {
@@ -53,6 +53,27 @@ function App() {
           </div>
         </header>
 
+        {/* The human's entire job, in one list, above everything else. */}
+        {data && data.waiting.length > 0 && (
+          <section className="mt-8 rounded-xl border border-amber-300 bg-amber-50 p-5">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+              Waiting on you
+            </h2>
+            <ul className="mt-3 space-y-3">
+              {data.waiting.map((a) => (
+                <li key={a._id}>
+                  <p className="text-stone-900">{a.question}</p>
+                  {a.why && <p className="text-sm text-stone-600">{a.why}</p>}
+                  <p className="mt-1 text-xs text-amber-800">
+                    {a.caseTitle} · asked {ago(a.askedAt)} · it is in your email, just reply
+                    {a.remindersSent > 0 && ` · ${a.remindersSent} reminder sent`}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {data === undefined ? (
           <p className="mt-12 text-stone-400">Connecting…</p>
         ) : data.cases.length === 0 ? (
@@ -65,7 +86,7 @@ function App() {
             </p>
           </div>
         ) : (
-          <section className="mt-10 space-y-4">
+          <section className="mt-8 space-y-4">
             {data.cases.map((c) => (
               <article
                 key={c._id}
@@ -96,7 +117,9 @@ function App() {
                   <ul className="mt-4 space-y-1.5 border-t border-stone-100 pt-3 text-sm">
                     {c.tracks.map((t) => (
                       <li key={t._id} className="flex items-baseline gap-3">
-                        <span className={`w-20 shrink-0 text-xs uppercase ${trackTone[t.state] ?? ''}`}>
+                        <span
+                          className={`w-20 shrink-0 text-xs uppercase ${trackTone[t.state] ?? ''}`}
+                        >
                           {t.state}
                         </span>
                         <span className="text-stone-800">{t.label}</span>
@@ -105,6 +128,35 @@ function App() {
                     ))}
                   </ul>
                 )}
+
+                {c.evidence.length > 0 && (
+                  <div className="mt-4 border-t border-stone-100 pt-3">
+                    <p className="text-xs uppercase tracking-wide text-stone-400">Evidence</p>
+                    <div className="mt-2 flex flex-wrap gap-3">
+                      {c.evidence.map((f) =>
+                        f.url && f.kind === 'photo' ? (
+                          <a key={f._id} href={f.url} target="_blank" rel="noreferrer" title={f.name}>
+                            <img
+                              src={f.url}
+                              alt={f.name}
+                              className="h-20 w-20 rounded-lg border border-stone-200 object-cover"
+                            />
+                          </a>
+                        ) : (
+                          <a
+                            key={f._id}
+                            href={f.url ?? '#'}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded-lg border border-stone-200 px-3 py-2 text-sm text-stone-700"
+                          >
+                            {f.name}
+                          </a>
+                        ),
+                      )}
+                    </div>
+                  </div>
+                )}
               </article>
             ))}
           </section>
@@ -112,9 +164,7 @@ function App() {
 
         {data && data.feed.length > 0 && (
           <section className="mt-12">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">
-              Live
-            </h2>
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">Live</h2>
             <ul className="mt-3 space-y-2 text-sm">
               {data.feed.map((e) => (
                 <li key={e._id} className="flex gap-3">

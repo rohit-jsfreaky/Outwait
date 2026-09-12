@@ -78,14 +78,28 @@ http.route({
       at: Number.isFinite(timestamp) ? timestamp : Date.now(),
     });
 
-    // Reading the email needs a model call, which is far slower than a webhook
-    // should be. Answer now, think after — otherwise Svix times out and retries
-    // a delivery we already accepted.
-    if (!stored.duplicate && stored.threadId && !stored.hasCase) {
-      await ctx.scheduler.runAfter(0, internal.mail.inbound.processInbound, {
-        messageId: stored.messageId,
-        threadId: stored.threadId,
-      });
+    // Reading the email needs a model call, and a reply may carry attachments
+    // that have to be fetched and downloaded. Both are far slower than a
+    // webhook should be. Answer now, think after — otherwise Svix times out and
+    // retries a delivery we already accepted.
+    if (!stored.duplicate && stored.threadId) {
+      if (stored.hasCase && stored.caseId) {
+        // A reply on a thread already bound to a case: route it to the ask.
+        await ctx.scheduler.runAfter(0, internal.mail.replies.processReply, {
+          messageId: stored.messageId,
+          caseId: stored.caseId,
+          agentmailMessageId: messageId,
+          from,
+          subject: typeof m.subject === "string" ? m.subject : undefined,
+          body: typeof m.text === "string" ? m.text : "",
+        });
+      } else {
+        // Nothing behind this thread yet, so it is a new case being forwarded in.
+        await ctx.scheduler.runAfter(0, internal.mail.inbound.processInbound, {
+          messageId: stored.messageId,
+          threadId: stored.threadId,
+        });
+      }
     }
 
     return new Response(null, { status: 204 });

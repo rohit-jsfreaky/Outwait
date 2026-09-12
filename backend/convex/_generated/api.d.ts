@@ -10,10 +10,13 @@
 
 import type * as agent_extract from "../agent/extract.js";
 import type * as agent_model from "../agent/model.js";
+import type * as asks from "../asks.js";
 import type * as cases from "../cases.js";
 import type * as http from "../http.js";
 import type * as lib_svix from "../lib/svix.js";
+import type * as mail_client from "../mail/client.js";
 import type * as mail_inbound from "../mail/inbound.js";
+import type * as mail_replies from "../mail/replies.js";
 
 import type {
   ApiFromModules,
@@ -24,10 +27,13 @@ import type {
 declare const fullApi: ApiFromModules<{
   "agent/extract": typeof agent_extract;
   "agent/model": typeof agent_model;
+  asks: typeof asks;
   cases: typeof cases;
   http: typeof http;
   "lib/svix": typeof lib_svix;
+  "mail/client": typeof mail_client;
   "mail/inbound": typeof mail_inbound;
+  "mail/replies": typeof mail_replies;
 }>;
 
 /**
