@@ -1,0 +1,111 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Outwait — ONE .gitignore for the whole repo.
+#
+# This is a single git repo, rooted here. Inside it there are three separate
+# npm projects (backend/, frontend/, component/) with no workspace linking
+# them, but they ship together and they travel together.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+# ── Secrets ──────────────────────────────────────────────────────────────────
+# API keys, deploy keys, and the Convex deployment name all live in .env.local.
+# Nothing here ever goes public.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets.json
+
+
+# ── Dependencies ─────────────────────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+
+
+# ── Build output ─────────────────────────────────────────────────────────────
+dist/
+dist-ssr/
+build/
+out/
+.vite/
+*.tsbuildinfo
+
+
+# ── Convex local state ───────────────────────────────────────────────────────
+# .convex/ is the local backend binary + its data. .convex-tmp/ is the codegen
+# scratch dir we point CONVEX_TMPDIR at so it stays on the same drive.
+.convex/
+.convex-tmp/
+
+
+# ── Notes and planning ───────────────────────────────────────────────────────
+# The whole strategy lives in markdown: MASTER-PLAN, DESIGN, PROGRESS, the
+# competition sweep, the phase-by-phase thinking. That stays on this machine.
+*.md
+
+# ...except the two files the judges are meant to read.
+# hackathon.md at the repo root is a HARD hackathon requirement — leaving it
+# out is a disqualification, so this line is not optional.
+!hackathon.md
+!/README.md
+!/LICENSE.md
+
+
+# ── Agent and editor tooling ─────────────────────────────────────────────────
+# Local dev tooling, not part of the product.
+.claude/
+.agents/
+.cursor/
+.vscode/
+.idea/
+.playwright-mcp/
+*.code-workspace
+
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+
+# ── Test and coverage ────────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+
+
+# ── Caches ───────────────────────────────────────────────────────────────────
+.eslintcache
+.cache/
+.temp/
+.tmp/
+temp/
+tmp/
+
+
+# ── OS and editor noise ──────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.local
