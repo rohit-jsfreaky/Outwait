@@ -8,7 +8,12 @@
  * @module
  */
 
-import type * as status from "../status.js";
+import type * as agent_extract from "../agent/extract.js";
+import type * as agent_model from "../agent/model.js";
+import type * as cases from "../cases.js";
+import type * as http from "../http.js";
+import type * as lib_svix from "../lib/svix.js";
+import type * as mail_inbound from "../mail/inbound.js";
 
 import type {
   ApiFromModules,
@@ -17,7 +22,12 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  status: typeof status;
+  "agent/extract": typeof agent_extract;
+  "agent/model": typeof agent_model;
+  cases: typeof cases;
+  http: typeof http;
+  "lib/svix": typeof lib_svix;
+  "mail/inbound": typeof mail_inbound;
 }>;
 
 /**
