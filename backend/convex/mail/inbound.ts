@@ -3,6 +3,7 @@ import { internalMutation, internalAction, internalQuery } from "../_generated/s
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { extractCase } from "../agent/extract";
+import { extractCode } from "./otp";
 
 /**
  * webhook -> mutation -> events -> live UI.
@@ -129,6 +130,20 @@ export const processInbound = internalAction({
         text: "That email had no readable text, so there was nothing to work from.",
       });
       return null;
+    }
+
+    // Boundary 1. If the agent has a signup in flight, mail carrying a code is
+    // that code — not a new case. Checked before extraction so a verification
+    // email never turns into a case. The code is found by regex, never by a
+    // model: a model asked to "find the code" in a hostile email can be talked
+    // into returning something else.
+    const signup = await ctx.runQuery(internal.mail.otp.openSignup, {});
+    if (signup) {
+      const code = extractCode(`${message.subject ?? ""}\n${body}`);
+      if (code) {
+        await ctx.runMutation(internal.mail.otp.recordCode, { signupId: signup._id, code });
+        return null;
+      }
     }
 
     await extractCase(ctx, {

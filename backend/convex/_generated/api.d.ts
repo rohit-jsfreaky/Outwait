@@ -11,11 +11,16 @@
 import type * as agent_extract from "../agent/extract.js";
 import type * as agent_model from "../agent/model.js";
 import type * as asks from "../asks.js";
+import type * as browser_firecrawl from "../browser/firecrawl.js";
 import type * as cases from "../cases.js";
+import type * as drafts from "../drafts.js";
+import type * as handoffs from "../handoffs.js";
 import type * as http from "../http.js";
+import type * as lib_status from "../lib/status.js";
 import type * as lib_svix from "../lib/svix.js";
 import type * as mail_client from "../mail/client.js";
 import type * as mail_inbound from "../mail/inbound.js";
+import type * as mail_otp from "../mail/otp.js";
 import type * as mail_replies from "../mail/replies.js";
 
 import type {
@@ -28,11 +33,16 @@ declare const fullApi: ApiFromModules<{
   "agent/extract": typeof agent_extract;
   "agent/model": typeof agent_model;
   asks: typeof asks;
+  "browser/firecrawl": typeof browser_firecrawl;
   cases: typeof cases;
+  drafts: typeof drafts;
+  handoffs: typeof handoffs;
   http: typeof http;
+  "lib/status": typeof lib_status;
   "lib/svix": typeof lib_svix;
   "mail/client": typeof mail_client;
   "mail/inbound": typeof mail_inbound;
+  "mail/otp": typeof mail_otp;
   "mail/replies": typeof mail_replies;
 }>;
 

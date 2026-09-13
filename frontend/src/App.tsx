@@ -64,6 +64,11 @@ function App() {
                 <li key={a._id}>
                   <p className="text-stone-900">{a.question}</p>
                   {a.why && <p className="text-sm text-stone-600">{a.why}</p>}
+                  {a.sendsTo && (
+                    <p className="mt-1 text-sm text-stone-700">
+                      Goes to <span className="font-medium">{a.sendsTo}</span> only if you say yes.
+                    </p>
+                  )}
                   <p className="mt-1 text-xs text-amber-800">
                     {a.caseTitle} · asked {ago(a.askedAt)} · it is in your email, just reply
                     {a.remindersSent > 0 && ` · ${a.remindersSent} reminder sent`}

@@ -109,3 +109,6 @@ desktop.ini
 *.njsproj
 *.sln
 *.local
+
+# Local MCP config — machine-specific absolute paths, not useful to anyone else
+.mcp.json

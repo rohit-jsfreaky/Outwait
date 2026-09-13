@@ -3,6 +3,7 @@ import { query, mutation, internalMutation, internalAction } from "./_generated/
 import { internal } from "./_generated/api";
 import { askKind } from "./schema";
 import { sendMessage } from "./mail/client";
+import { recomputeCaseStatus } from "./lib/status";
 
 /**
  * The asks loop.
@@ -310,15 +311,8 @@ export const answer = internalMutation({
       }
     }
 
-    const stillOpen = await ctx.db
-      .query("asks")
-      .withIndex("by_caseId_and_state", (q) => q.eq("caseId", ask.caseId).eq("state", "open"))
-      .take(1);
-
-    await ctx.db.patch("cases", ask.caseId, {
-      status: stillOpen.length > 0 ? "waiting_on_you" : "working",
-      lastMovedAt: now,
-    });
+    // Another ask, a held draft or an open handoff may still need this person.
+    await recomputeCaseStatus(ctx, ask.caseId);
 
     await ctx.db.insert("events", {
       caseId: ask.caseId,

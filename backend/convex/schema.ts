@@ -202,6 +202,26 @@ export default defineSchema({
     at: v.number(),
   }).index("by_caseId", ["caseId"]),
 
+  // Boundary 1: the agent signing ITSELF up somewhere. While one of these is
+  // open, mail arriving at the agent inbox that carries a code is that code,
+  // not a new case. That routing decision is deterministic, not a model guess.
+  signups: defineTable({
+    caseId: v.id("cases"),
+    site: v.string(),
+    profileName: v.string(),
+    scrapeId: v.optional(v.string()),
+    state: v.union(
+      v.literal("registering"),
+      v.literal("awaiting_code"),
+      v.literal("verified"),
+      v.literal("failed"),
+    ),
+    code: v.optional(v.string()),
+    startedAt: v.number(),
+  })
+    .index("by_state", ["state"])
+    .index("by_caseId", ["caseId"]),
+
   // The audit trail AND the live feed. The board subscribes to this.
   events: defineTable({
     caseId: v.optional(v.id("cases")),

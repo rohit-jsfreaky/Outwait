@@ -96,7 +96,32 @@ export const processReply = internalAction({
       }
     }
 
-    // 4. Close the open ask, if there is one. Deterministic from here down.
+    // 4a. A held draft outranks an ask: this reply may be the approval that
+    // lets something binding go out. Only a human reply reaches this branch —
+    // there is no path from the model to `approve`.
+    const held = await ctx.runQuery(internal.drafts.pendingFor, { caseId: args.caseId });
+    if (held) {
+      if (intent === "approval") {
+        await ctx.runAction(internal.drafts.approve, {
+          draftId: held._id,
+          approvedBy: args.from,
+        });
+        return null;
+      }
+      if (intent === "refusal") {
+        await ctx.runMutation(internal.drafts.reject, { draftId: held._id, by: args.from });
+        return null;
+      }
+      // Anything unclear is not a yes. A draft is never sent on a maybe.
+      await ctx.runMutation(internal.mail.inbound.noteEvent, {
+        caseId: args.caseId,
+        type: "draft.unclear",
+        text: "That did not read as a yes, so it is still held. Reply yes to send it.",
+      });
+      return null;
+    }
+
+    // 4b. Close the open ask, if there is one. Deterministic from here down.
     const ask = await ctx.runQuery(internal.mail.replies.openAskFor, { caseId: args.caseId });
     if (ask) {
       const note =

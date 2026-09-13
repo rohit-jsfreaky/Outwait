@@ -122,3 +122,37 @@ export async function getAttachment(
 
   return { blob, contentType, filename: meta.filename };
 }
+
+// ---------------------------------------------------------------------------
+// Drafts — boundary 2. Anything binding is held here until a human approves.
+// ---------------------------------------------------------------------------
+
+export type CreatedDraft = { draft_id: string };
+
+/** Compose but do not send. This is the gate, and it is server-side. */
+export async function createDraft(input: {
+  to: string[];
+  subject: string;
+  text: string;
+  labels?: string[];
+}): Promise<CreatedDraft> {
+  return (await call("POST", `/inboxes/${encodeURIComponent(INBOX_ID)}/drafts`, {
+    to: input.to,
+    subject: input.subject,
+    text: input.text,
+    labels: input.labels,
+  })) as CreatedDraft;
+}
+
+/** Send a held draft. Only ever called after a human has said yes. */
+export async function sendDraft(draftId: string): Promise<SentMessage> {
+  return (await call(
+    "POST",
+    `/inboxes/${encodeURIComponent(INBOX_ID)}/drafts/${encodeURIComponent(draftId)}/send`,
+    {},
+  )) as SentMessage;
+}
+
+export async function deleteDraft(draftId: string): Promise<void> {
+  await call("DELETE", `/inboxes/${encodeURIComponent(INBOX_ID)}/drafts/${encodeURIComponent(draftId)}`);
+}

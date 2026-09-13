@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { query } from "./_generated/server";
+import { query, internalMutation } from "./_generated/server";
+import { recomputeCaseStatus } from "./lib/status";
 
 /**
  * The board. One reactive query drives the whole screen, so when an email
@@ -64,27 +65,57 @@ export const board = query({
       }),
     );
 
-    const openAsks = await ctx.db
-      .query("asks")
-      .withIndex("by_state", (q) => q.eq("state", "open"))
-      .order("desc")
-      .take(10);
+    // Waiting on you is asks AND held drafts. A letter the agent has written
+    // but will not send is waiting on a person just as much as a question is,
+    // and it is the more consequential of the two.
+    const [openAsks, heldDrafts] = await Promise.all([
+      ctx.db
+        .query("asks")
+        .withIndex("by_state", (q) => q.eq("state", "open"))
+        .order("desc")
+        .take(10),
+      ctx.db
+        .query("drafts")
+        .withIndex("by_state", (q) => q.eq("state", "held"))
+        .order("desc")
+        .take(10),
+    ]);
 
-    const waiting = await Promise.all(
+    const askRows = await Promise.all(
       openAsks.map(async (a) => {
         const c = await ctx.db.get("cases", a.caseId);
         return {
-          _id: a._id,
+          _id: a._id as string,
           caseId: a.caseId,
           caseTitle: c?.title ?? "Unknown case",
-          kind: a.kind,
+          kind: a.kind as string,
           question: a.question,
           why: a.why,
           askedAt: a.askedAt,
           remindersSent: a.remindersSent,
+          sendsTo: undefined as string | undefined,
         };
       }),
     );
+
+    const draftRows = await Promise.all(
+      heldDrafts.map(async (d) => {
+        const c = await ctx.db.get("cases", d.caseId);
+        return {
+          _id: d._id as string,
+          caseId: d.caseId,
+          caseTitle: c?.title ?? "Unknown case",
+          kind: "approve" as string,
+          question: `Approve the ${d.purpose} before I send it`,
+          why: d.subject,
+          askedAt: d.createdAt,
+          remindersSent: 0,
+          sendsTo: d.to.join(", ") as string | undefined,
+        };
+      }),
+    );
+
+    const waiting = [...draftRows, ...askRows].sort((a, b) => b.askedAt - a.askedAt);
 
     const feed = await ctx.db.query("events").withIndex("by_at").order("desc").take(25);
 
@@ -132,4 +163,13 @@ export const get = query({
 
     return { case: c, tracks, messages, events, evidence };
   },
+});
+
+/**
+ * Recompute a case's status from its rows. Status is derived data, so it can
+ * drift if a write path ever forgets to update it — this is the repair.
+ */
+export const resync = internalMutation({
+  args: { caseId: v.id("cases") },
+  handler: async (ctx, args) => recomputeCaseStatus(ctx, args.caseId),
 });
