@@ -12,6 +12,7 @@
     "build:frontend": "cd ../frontend && npm run build"
   },
   "dependencies": {
+    "@convex-dev/presence": "^0.4.0",
     "@convex-dev/static-hosting": "^0.2.1",
     "@convex-dev/workflow": "^0.4.7",
     "convex": "^1.44.0"

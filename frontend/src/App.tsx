@@ -1,5 +1,8 @@
+import { useState } from 'react'
 import { useQuery } from 'convex/react'
 import { api } from '@backend/_generated/api'
+import { WhoElse } from './Presence'
+import { getMe, setMe, meOrGuest } from './identity'
 
 const INBOX = 'outwait@agentmail.to'
 
@@ -36,6 +39,8 @@ const statusLabel: Record<string, string> = {
 
 function App() {
   const data = useQuery(api.cases.board)
+  const [me, setMeState] = useState(() => meOrGuest())
+  const known = getMe() !== null
 
   return (
     <main className="min-h-dvh bg-stone-50 text-stone-900">
@@ -50,6 +55,29 @@ function App() {
             <span className="rounded bg-stone-200 px-1.5 py-0.5 font-mono text-stone-800">
               {INBOX}
             </span>
+            {!known && (
+              <form
+                className="mt-2 flex gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const v = new FormData(e.currentTarget).get('email')
+                  if (typeof v === 'string' && v.includes('@')) {
+                    setMe(v)
+                    setMeState(v.trim().toLowerCase())
+                  }
+                }}
+              >
+                <input
+                  name="email"
+                  type="email"
+                  placeholder="your email, so others know you are here"
+                  className="w-64 rounded border border-stone-300 px-2 py-1 text-xs"
+                />
+                <button className="rounded bg-stone-900 px-3 py-1 text-xs text-white">
+                  Save
+                </button>
+              </form>
+            )}
           </div>
         </header>
 
@@ -114,6 +142,10 @@ function App() {
                 <p className="mt-1 text-sm text-stone-500">
                   {c.company.name}
                   {c.reference ? ` · ref ${c.reference}` : ''} · moved {ago(c.lastMovedAt)}
+                </p>
+
+                <p className="mt-1">
+                  <WhoElse roomId={`case:${c._id}`} me={me} />
                 </p>
 
                 {c.summary && <p className="mt-3 text-stone-700">{c.summary}</p>}

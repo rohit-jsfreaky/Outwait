@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@convex-dev/presence": "^0.4.0",
     "@tailwindcss/vite": "^4.3.3",
     "convex": "^1.45.0",
     "react": "^19.2.8",

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useAction, useQuery } from 'convex/react'
 import { api } from '@backend/_generated/api'
+import { WhoIsDriving } from './Presence'
+import { meOrGuest } from './identity'
 
 /**
  * BOUNDARY 3 — the handover page.
@@ -21,6 +23,7 @@ export default function Handover({ token }: { token: string }) {
   const [opening, setOpening] = useState(false)
   const [done, setDone] = useState(false)
   const [left, setLeft] = useState<number | null>(null)
+  const [me] = useState(() => meOrGuest())
 
   // Count the session down out loud. Ten minutes is not long, and a person
   // deserves to know rather than watch it die.
@@ -118,6 +121,7 @@ export default function Handover({ token }: { token: string }) {
               Type the password in the frame. Nobody else can see it — it renders as dots on
               every other screen.
             </p>
+            <WhoIsDriving roomId={`handover:${token}`} me={me} />
             {left !== null && (
               <span className="rounded-full bg-stone-100 px-3 py-1 text-xs text-stone-600">
                 session ends in {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}

@@ -25,6 +25,8 @@ import type * as mail_client from "../mail/client.js";
 import type * as mail_inbound from "../mail/inbound.js";
 import type * as mail_otp from "../mail/otp.js";
 import type * as mail_replies from "../mail/replies.js";
+import type * as members from "../members.js";
+import type * as presence from "../presence.js";
 import type * as tracks from "../tracks.js";
 import type * as workflows_chase from "../workflows/chase.js";
 
@@ -52,6 +54,8 @@ declare const fullApi: ApiFromModules<{
   "mail/inbound": typeof mail_inbound;
   "mail/otp": typeof mail_otp;
   "mail/replies": typeof mail_replies;
+  members: typeof members;
+  presence: typeof presence;
   tracks: typeof tracks;
   "workflows/chase": typeof workflows_chase;
 }>;
@@ -85,4 +89,5 @@ export declare const internal: FilterApi<
 export declare const components: {
   staticHosting: import("@convex-dev/static-hosting/_generated/component.js").ComponentApi<"staticHosting">;
   workflow: import("@convex-dev/workflow/_generated/component.js").ComponentApi<"workflow">;
+  presence: import("@convex-dev/presence/_generated/component.js").ComponentApi<"presence">;
 };

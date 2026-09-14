@@ -117,8 +117,10 @@ export const createAndAskApproval = internalAction({
       `Reply "yes" and I will send it. Reply "no" and I will not.`,
     ].join("\n");
 
+    // Any member can approve. Whoever gets to it first is enough.
+    const to = await ctx.runQuery(internal.members.recipientsFor, { caseId: draft.caseId });
     const sent = await sendMessage({
-      to: [loaded.ownerEmail],
+      to: to.length > 0 ? to : [loaded.ownerEmail],
       subject: `${loaded.caseTitle} — approve before I send this`,
       text: preview,
       labels: ["approval"],
@@ -250,10 +252,24 @@ export const markSent = internalMutation({
     });
 
     await recomputeCaseStatus(ctx, d.caseId, "waiting_on_them");
+
+    // On a shared case, say WHO approved. "You approved it" shown to three
+    // flatmates is wrong for two of them, and the point of sharing a case is
+    // that the others can stop thinking about it.
+    const members = await ctx.db
+      .query("caseMembers")
+      .withIndex("by_caseId", (q) => q.eq("caseId", d.caseId))
+      .take(20);
+    const who = args.approvedBy.replace(/.*<|>.*/g, "").trim().toLowerCase();
+    const name = who.split("@")[0];
+
     await ctx.db.insert("events", {
       caseId: d.caseId,
       type: "draft.approved",
-      text: `You approved it. The ${d.purpose} has gone to ${d.to.join(", ")}.`,
+      text:
+        members.length > 1
+          ? `${name} approved it. The ${d.purpose} has gone to ${d.to.join(", ")}. Nobody else needs to look.`
+          : `You approved it. The ${d.purpose} has gone to ${d.to.join(", ")}.`,
       at: now,
     });
     return null;

@@ -142,8 +142,11 @@ export const sendAskEmail = internalAction({
     const ask = await ctx.runMutation(internal.asks.loadForEmail, { askId: args.askId });
     if (!ask) return null;
 
+    // Everyone on the case gets asked. The first answer closes it for all of
+    // them, so nobody does the same job twice.
+    const to = await ctx.runQuery(internal.members.recipientsFor, { caseId: ask.caseId });
     const sent = await sendMessage({
-      to: [ask.to],
+      to: to.length > 0 ? to : [ask.to],
       subject: `${ask.caseTitle} — quick thing`,
       text: askBody(ask),
       labels: ["ask"],
@@ -319,6 +322,13 @@ export const answer = internalMutation({
       type: "ask.answered",
       text: args.note ?? `You answered: ${args.answerValue.slice(0, 80)}`,
       at: now,
+    });
+
+    // On a shared case, say out loud that the others are off the hook.
+    await ctx.runMutation(internal.members.noteAnsweredBy, {
+      caseId: ask.caseId,
+      who: args.answeredBy,
+      what: "answered that",
     });
     return null;
   },
