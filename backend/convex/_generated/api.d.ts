@@ -12,6 +12,7 @@ import type * as agent_extract from "../agent/extract.js";
 import type * as agent_model from "../agent/model.js";
 import type * as asks from "../asks.js";
 import type * as browser_firecrawl from "../browser/firecrawl.js";
+import type * as browser_signup from "../browser/signup.js";
 import type * as cases from "../cases.js";
 import type * as drafts from "../drafts.js";
 import type * as handoffs from "../handoffs.js";
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   "agent/model": typeof agent_model;
   asks: typeof asks;
   "browser/firecrawl": typeof browser_firecrawl;
+  "browser/signup": typeof browser_signup;
   cases: typeof cases;
   drafts: typeof drafts;
   handoffs: typeof handoffs;

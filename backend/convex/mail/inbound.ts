@@ -123,27 +123,35 @@ export const processInbound = internalAction({
     });
     if (!message) return null;
 
+    const subject = message.subject ?? "";
     const body = message.body ?? message.preview ?? "";
+
+    // Boundary 1 runs FIRST, before any emptiness check.
+    //
+    // Plenty of verification mails carry the code in the SUBJECT and have no
+    // usable text body at all — "586331 is your supermemory sign-in code" is
+    // exactly that shape. Checking the body first threw those away as empty
+    // before anyone looked at them.
+    //
+    // The code is found by regex, never by a model: a model asked to "find the
+    // code" in a hostile email can be talked into returning something else.
+    // And it only looks while a signup is genuinely in flight, so a mail full
+    // of digits is otherwise just a new case.
+    const signup = await ctx.runQuery(internal.mail.otp.openSignup, {});
+    if (signup) {
+      const code = extractCode(`${subject}\n${message.preview ?? ""}\n${body}`);
+      if (code) {
+        await ctx.runMutation(internal.mail.otp.recordCode, { signupId: signup._id, code });
+        return null;
+      }
+    }
+
     if (body.trim().length === 0) {
       await ctx.runMutation(internal.mail.inbound.noteEvent, {
         type: "mail.empty",
         text: "That email had no readable text, so there was nothing to work from.",
       });
       return null;
-    }
-
-    // Boundary 1. If the agent has a signup in flight, mail carrying a code is
-    // that code — not a new case. Checked before extraction so a verification
-    // email never turns into a case. The code is found by regex, never by a
-    // model: a model asked to "find the code" in a hostile email can be talked
-    // into returning something else.
-    const signup = await ctx.runQuery(internal.mail.otp.openSignup, {});
-    if (signup) {
-      const code = extractCode(`${message.subject ?? ""}\n${body}`);
-      if (code) {
-        await ctx.runMutation(internal.mail.otp.recordCode, { signupId: signup._id, code });
-        return null;
-      }
     }
 
     await extractCase(ctx, {

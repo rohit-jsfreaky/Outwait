@@ -127,3 +127,33 @@ export const failSignup = internalMutation({
     return null;
   },
 });
+
+export const getSignup = internalQuery({
+  args: { signupId: v.id("signups") },
+  handler: async (ctx, args) => ctx.db.get("signups", args.signupId),
+});
+
+/** The code went in and the agent is through. Its own account, its own code. */
+export const finishSignup = internalMutation({
+  args: { signupId: v.id("signups"), landedOn: v.string() },
+  handler: async (ctx, args) => {
+    const s = await ctx.db.get("signups", args.signupId);
+    if (!s) return null;
+    await ctx.db.insert("events", {
+      caseId: s.caseId,
+      type: "signup.done",
+      text: `Registered at ${s.site} in my own name. No human touched it.`,
+      at: Date.now(),
+    });
+    return null;
+  },
+});
+
+/** Drop a signup row that never completed, so the trail reads true. */
+export const dropSignup = internalMutation({
+  args: { signupId: v.id("signups") },
+  handler: async (ctx, args) => {
+    await ctx.db.delete("signups", args.signupId);
+    return null;
+  },
+});

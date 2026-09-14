@@ -32,6 +32,9 @@ const should = [
   ["Your security code is 482913. Do not share it with anyone.", "482913"],
   ["Claims Portal\n\nVerification code\n\n610934\n\nValid for 15 minutes.", "610934"],
   ["Use 550132 to confirm your email address.", "550132"],
+  // A real one, caught in production: the code is in the SUBJECT and the body
+  // is empty. Checking the body first threw this away as an empty email.
+  ["586331 is your supermemory sign-in code", "586331"],
 ];
 
 // The Sunvale email that opened the real case must never read as a code.
