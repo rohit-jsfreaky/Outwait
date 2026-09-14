@@ -8,10 +8,12 @@
  * @module
  */
 
+import type * as agent_decide from "../agent/decide.js";
 import type * as agent_extract from "../agent/extract.js";
 import type * as agent_model from "../agent/model.js";
 import type * as asks from "../asks.js";
 import type * as browser_firecrawl from "../browser/firecrawl.js";
+import type * as browser_research from "../browser/research.js";
 import type * as browser_signup from "../browser/signup.js";
 import type * as cases from "../cases.js";
 import type * as drafts from "../drafts.js";
@@ -23,6 +25,8 @@ import type * as mail_client from "../mail/client.js";
 import type * as mail_inbound from "../mail/inbound.js";
 import type * as mail_otp from "../mail/otp.js";
 import type * as mail_replies from "../mail/replies.js";
+import type * as tracks from "../tracks.js";
+import type * as workflows_chase from "../workflows/chase.js";
 
 import type {
   ApiFromModules,
@@ -31,10 +35,12 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "agent/decide": typeof agent_decide;
   "agent/extract": typeof agent_extract;
   "agent/model": typeof agent_model;
   asks: typeof asks;
   "browser/firecrawl": typeof browser_firecrawl;
+  "browser/research": typeof browser_research;
   "browser/signup": typeof browser_signup;
   cases: typeof cases;
   drafts: typeof drafts;
@@ -46,6 +52,8 @@ declare const fullApi: ApiFromModules<{
   "mail/inbound": typeof mail_inbound;
   "mail/otp": typeof mail_otp;
   "mail/replies": typeof mail_replies;
+  tracks: typeof tracks;
+  "workflows/chase": typeof workflows_chase;
 }>;
 
 /**
@@ -76,4 +84,5 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   staticHosting: import("@convex-dev/static-hosting/_generated/component.js").ComponentApi<"staticHosting">;
+  workflow: import("@convex-dev/workflow/_generated/component.js").ComponentApi<"workflow">;
 };

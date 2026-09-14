@@ -173,3 +173,28 @@ export const resync = internalMutation({
   args: { caseId: v.id("cases") },
   handler: async (ctx, args) => recomputeCaseStatus(ctx, args.caseId),
 });
+
+/**
+ * Delete a case and everything hanging off it. Used to clear rows created by a
+ * bug before the guard existed — a verification code and a bounce notice each
+ * opened a case that was never a claim.
+ */
+export const purge = internalMutation({
+  args: { caseId: v.id("cases") },
+  handler: async (ctx, args) => {
+    const tables = ["tracks", "asks", "drafts", "handoffs", "evidence", "events", "messages", "threads", "caseMembers", "signups", "browserSessions"] as const;
+    let removed = 0;
+    for (const table of tables) {
+      const rows = await ctx.db
+        .query(table)
+        .withIndex("by_caseId", (q) => q.eq("caseId", args.caseId))
+        .take(200);
+      for (const r of rows) {
+        await ctx.db.delete(table, r._id);
+        removed++;
+      }
+    }
+    await ctx.db.delete("cases", args.caseId);
+    return removed;
+  },
+});

@@ -154,6 +154,22 @@ export const processInbound = internalAction({
       return null;
     }
 
+    // Machine mail is not a case.
+    //
+    // Found the hard way: a stray verification code opened a case called
+    // "Supermemory sign-in alert", and a bounce notice opened one called
+    // "Sunvale Estates email delivery". Neither is a claim anyone is owed.
+    // Only correspondence a person or a company actually wrote should open a
+    // case, and that test is deterministic — never a model's opinion.
+    const automated = looksAutomated(message.from, subject, body);
+    if (automated) {
+      await ctx.runMutation(internal.mail.inbound.noteEvent, {
+        type: "mail.ignored",
+        text: `Ignored an automated email (${automated}). Not a case.`,
+      });
+      return null;
+    }
+
     await extractCase(ctx, {
       messageId: args.messageId,
       threadId: args.threadId,
@@ -184,3 +200,33 @@ export const noteEvent = internalMutation({
 });
 
 export type { Id };
+
+/**
+ * Is this machine mail rather than correspondence? Returns the reason, or null.
+ *
+ * Deliberately narrow. The cost of a false positive is a real claim silently
+ * ignored, which is far worse than a junk case, so this only catches shapes
+ * that are unambiguous: delivery daemons, no-reply senders, and mail whose
+ * whole purpose is a login code.
+ */
+export function looksAutomated(from: string, subject: string, body: string): string | null {
+  const sender = from.toLowerCase();
+
+  if (/mailer-daemon|postmaster@|delivery-?status|bounce/.test(sender)) {
+    return "delivery failure notice";
+  }
+  if (/\bno-?reply@|donotreply@/.test(sender)) return "no-reply sender";
+
+  const head = `${subject} ${body.slice(0, 300)}`.toLowerCase();
+  if (/undeliverable|delivery status notification|message could not be delivered/.test(head)) {
+    return "delivery failure notice";
+  }
+  // A mail whose subject is essentially "here is your code".
+  if (/\b(sign-?in|log-?in|verification|one-?time|security)\s+code\b/.test(subject.toLowerCase())) {
+    return "verification code";
+  }
+  if (/\b(is your|your)\s+(otp|code|passcode|verification code)\b/.test(head)) {
+    return "verification code";
+  }
+  return null;
+}

@@ -187,7 +187,7 @@ export const dropEvidence = internalMutation({
     await ctx.db.insert("events", {
       caseId: row.caseId,
       type: "evidence.removed",
-      text: `Removed ${row.locator ?? "a file"} — it did not download correctly.`,
+      text: `Removed ${row.locator ?? "a file"} from the case.`,
       at: Date.now(),
     });
     return null;

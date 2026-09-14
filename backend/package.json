@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@convex-dev/static-hosting": "^0.2.1",
+    "@convex-dev/workflow": "^0.4.7",
     "convex": "^1.44.0"
   },
   "devDependencies": {
