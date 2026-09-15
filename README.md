@@ -14,12 +14,15 @@ do not outsmart them, you outwait them.
 
 Built for the [Convex All Gas Hackathon](https://vibeapps.dev/tag/allgashackathon).
 
-**Live app:** https://frugal-gopher-151.convex.site
+**Live app:** https://tangible-finch-783.convex.site
 **Build log:** [hackathon.md](./hackathon.md)
 
-> **Status: early.** Phase 0 of 9 is done — the app is deployed and talking to Convex, and that is
-> all it does so far. Everything below describes what is being built, not what already works. The
-> build log has the honest, dated version.
+> **Status: working.** All three boundaries below are live on the production deployment and have
+> been driven end to end, not mocked: the agent has registered itself on a site and read its own
+> verification code; a letter has been held as a draft until a human replied "yes"; and a person has
+> typed a password into a live browser the agent then carried on using. Sign-in, the multi-week
+> chase workflow, and multi-user presence are live too. The build log has the honest, dated version,
+> including the things that broke.
 
 ## The rule the product is built on
 
@@ -51,6 +54,17 @@ The product is really about one question: where does the human stand when the ag
 One track gets blocked waiting on a human. The others keep moving. While blocked, the agent fills in
 the whole form so the person's part is only the password, and it looks for a route around the block
 entirely — email first, its own account second, and asking you only last.
+
+## Signing in
+
+There is no password anywhere in this product, including its own front door. You give an address, a
+six-digit code arrives from the agent's own inbox, and you type it back. Signing in the same way the
+product already reaches you is the honest version of the rule above — and it means every address on
+the board is one somebody proved they can read.
+
+The board is the only screen that needs a session. The landing page is open, and so is the handover
+page: somebody has just tapped a one-tap link on their phone, and the token in that URL *is* the
+credential. Making them sign in first would break the one thing the product promises.
 
 ## Stack
 

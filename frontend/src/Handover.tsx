@@ -1,8 +1,18 @@
 import { useEffect, useState } from 'react'
 import { useAction, useQuery } from 'convex/react'
 import { api } from '@backend/_generated/api'
+import { CheckCircle2, Clock3, TriangleAlert } from 'lucide-react'
+
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Spinner } from '@/components/ui/spinner'
+import { Skeleton } from '@/components/ui/skeleton'
+
 import { WhoIsDriving } from './Presence'
 import { meOrGuest } from './identity'
+import { useSurface } from './surface'
 
 /**
  * BOUNDARY 3 — the handover page.
@@ -13,6 +23,7 @@ import { meOrGuest } from './identity'
  * be dead by the time someone taps the link.
  */
 export default function Handover({ token }: { token: string }) {
+  useSurface('light')
   const handoff = useQuery(api.handoffs.byToken, { token })
   const open = useAction(api.handoffs.open)
   const finish = useAction(api.handoffs.finish)
@@ -23,7 +34,13 @@ export default function Handover({ token }: { token: string }) {
   const [opening, setOpening] = useState(false)
   const [done, setDone] = useState(false)
   const [left, setLeft] = useState<number | null>(null)
-  const [me] = useState(() => meOrGuest())
+  // This page is reachable without an account, on purpose — the token in the
+  // URL is the credential and somebody just tapped a link on their phone. If
+  // they happen to be signed in we use their real address; otherwise a guest
+  // label is enough for "who is driving".
+  const signedIn = useQuery(api.users.me)
+  const [guest] = useState(() => meOrGuest())
+  const me = signedIn?.email ?? guest
 
   // Count the session down out loud. Ten minutes is not long, and a person
   // deserves to know rather than watch it die.
@@ -59,98 +76,134 @@ export default function Handover({ token }: { token: string }) {
   }
 
   if (handoff === undefined) {
-    return <Shell><p className="text-stone-400">Loading…</p></Shell>
-  }
-  if (handoff === null) {
-    return <Shell><p>That link is not valid.</p></Shell>
-  }
-  if (handoff.expired || handoff.state === 'expired') {
     return (
       <Shell>
-        <h1 className="text-2xl font-semibold">This link has expired</h1>
-        <p className="mt-2 text-stone-600">
-          Nothing is lost. The agent is still working the case and will send a fresh link.
-        </p>
+        <Skeleton className="h-3.5 w-44" />
+        <Skeleton className="mt-3 h-9 w-[22rem] max-w-full" />
+        <Card className="surface mt-6 max-w-xl rounded-xl border-0">
+          <CardContent className="space-y-3">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-10 w-44 rounded-full" />
+          </CardContent>
+        </Card>
       </Shell>
     )
   }
+
+  if (handoff === null) {
+    return (
+      <Shell>
+        <Alert variant="destructive">
+          <TriangleAlert />
+          <AlertTitle>That link is not valid.</AlertTitle>
+          <AlertDescription>Check the email again, or ask for a fresh one.</AlertDescription>
+        </Alert>
+      </Shell>
+    )
+  }
+
+  if (handoff.expired || handoff.state === 'expired') {
+    return (
+      <Shell>
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-display text-3xl">This link has expired</CardTitle>
+            <CardDescription className="text-base">
+              Nothing is lost. The agent is still working the case and will send a fresh link.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </Shell>
+    )
+  }
+
   if (done || handoff.state === 'done') {
     return (
       <Shell>
-        <h1 className="text-2xl font-semibold">Done. Thank you.</h1>
-        <p className="mt-2 text-stone-600">
-          The login is saved against {handoff.company ?? 'this company'}. I will not need to
-          ask you again.
-        </p>
-        <p className="mt-1 text-sm text-stone-500">You can close this tab.</p>
+        <Card>
+          <CardHeader>
+            <CheckCircle2 className="mb-2 size-8 text-mint" />
+            <CardTitle className="font-display text-3xl">Done. Thank you.</CardTitle>
+            <CardDescription className="text-base">
+              The login is saved against {handoff.company ?? 'this company'}. I will not need to
+              ask you again.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground text-sm">You can close this tab.</p>
+          </CardContent>
+        </Card>
       </Shell>
     )
   }
 
   return (
     <Shell wide={!!url}>
-      <p className="text-xs uppercase tracking-wide text-stone-400">{handoff.caseTitle}</p>
-      <h1 className="mt-1 text-2xl font-semibold">{handoff.reason}</h1>
+      <p className="text-muted-foreground text-xs tracking-wide uppercase">
+        {handoff.caseTitle}
+      </p>
+      <h1 className="font-display mt-1 text-4xl tracking-tight">{handoff.reason}</h1>
 
       {!url && (
-        <>
-          <p className="mt-3 max-w-xl text-stone-600">
-            I have filled in everything I can. The only part left is the password, and I am
-            not asking you for it — you type it straight into the browser below and I carry
-            on from there.
-          </p>
-          <p className="mt-2 max-w-xl text-sm text-stone-500">
-            The browser starts when you press this, so nothing has been sitting open waiting
-            for you.
-          </p>
-          <button
-            onClick={start}
-            disabled={opening}
-            className="mt-5 rounded-lg bg-stone-900 px-5 py-2.5 text-white disabled:opacity-50"
-          >
-            {opening ? 'Starting the browser…' : 'Open the browser'}
-          </button>
-          {error && <p className="mt-3 text-sm text-red-700">{error}</p>}
-        </>
+        <Card className="surface mt-6 max-w-xl rounded-xl border-0">
+          <CardContent className="space-y-3">
+            <p className="leading-relaxed">
+              I have filled in everything I can. The only part left is the password, and I am not
+              asking you for it — you type it straight into the browser below and I carry on from
+              there.
+            </p>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              The browser starts when you press this, so nothing has been sitting open waiting
+              for you.
+            </p>
+            <Button size="lg" onClick={start} disabled={opening} className="rounded-full">
+              {opening && <Spinner />}
+              {opening ? 'Starting the browser…' : 'Open the browser'}
+            </Button>
+            {error && (
+              <Alert variant="destructive">
+                <TriangleAlert />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {url && (
         <>
           <div className="mt-4 flex flex-wrap items-center gap-4">
-            <p className="text-sm text-stone-600">
+            <p className="text-muted-foreground text-sm">
               Type the password in the frame. Nobody else can see it — it renders as dots on
               every other screen.
             </p>
             <WhoIsDriving roomId={`handover:${token}`} me={me} />
             {left !== null && (
-              <span className="rounded-full bg-stone-100 px-3 py-1 text-xs text-stone-600">
-                session ends in {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}
-              </span>
+              <Badge className="gap-1.5 rounded-full bg-amber-soft font-mono text-amber">
+                <Clock3 className="size-3" />
+                {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')} left
+              </Badge>
             )}
           </div>
 
           <iframe
             src={url}
             title="handover"
-            className="mt-4 h-[620px] w-full rounded-xl border border-stone-300 bg-white"
+            className="surface mt-4 h-[620px] w-full rounded-xl bg-white"
           />
 
-          <div className="mt-4 flex items-center gap-4">
-            <button
-              onClick={complete}
-              className="rounded-lg bg-stone-900 px-5 py-2.5 text-white"
-            >
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <Button size="lg" onClick={complete} className="rounded-full">
               I am logged in — carry on
-            </button>
+            </Button>
             {watchUrl && (
-              <a
-                href={watchUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm text-stone-500 underline"
-              >
-                read-only view for everyone else
-              </a>
+              <Button asChild variant="link" size="sm">
+                <a href={watchUrl} target="_blank" rel="noreferrer">
+                  read-only view for everyone else
+                </a>
+              </Button>
             )}
           </div>
         </>
@@ -161,9 +214,12 @@ export default function Handover({ token }: { token: string }) {
 
 function Shell({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
   return (
-    <main className="min-h-dvh bg-stone-50 text-stone-900">
+    <main className="min-h-dvh">
       <div className={`mx-auto px-6 py-10 ${wide ? 'max-w-6xl' : 'max-w-2xl'}`}>
-        <p className="mb-6 text-sm font-semibold">Outwait</p>
+        <div className="mb-8 flex items-center gap-2.5">
+          <img src="/brand/mark-dark.webp" alt="" className="size-7" />
+          <span className="font-semibold tracking-tight">Outwait</span>
+        </div>
         {children}
       </div>
     </main>

@@ -7,12 +7,12 @@
 - **Repo:** https://github.com/rohit-jsfreaky/Outwait
 - **Frontend:** Convex static hosting
 - **Convex deployment:** https://tangible-finch-783.convex.cloud
-- **Components:** @convex-dev/static-hosting
-- **Convex features:** schema, indexes, queries, mutations, internal functions, actions, HTTP actions, scheduled functions, realtime queries
-- **Auth:** none
+- **Components:** @convex-dev/static-hosting, @convex-dev/workflow, @convex-dev/presence
+- **Convex features:** schema, tables, indexes, queries, mutations, internal functions, actions, HTTP actions, scheduled functions, file storage, realtime queries
+- **Auth:** Convex Auth
 - **AI models:** openai/gpt-5.6-luna (via OpenRouter)
 - **Started:** 2026-09-12T09:10:36Z
-- **Last updated:** 2026-09-12T11:20:00Z
+- **Last updated:** 2026-09-14T15:33:04Z
 
 ## Log
 
@@ -58,7 +58,7 @@ production deployments, not committed: `FIRECRAWL_API_KEY`, `AGENTMAIL_API_KEY`,
 values live only on the deployments. No model is called yet, so **AI models** stays
 `none` until there is code to back it.
 
-### 2026-09-12 - working tree
+### 2026-09-12 - d9b15a1
 
 The email spine, end to end. Someone forwards an email and a case opens on the board on its own —
 no form, and nobody opens the app. Proven on the production deployment with a real forwarded
@@ -91,3 +91,82 @@ password into an embedded Firecrawl interactive live view, the agent carried on 
 session, and three later sessions reused the saved profile to read a page that only exists behind
 that login. The profile write turned out to be asynchronous — reading it back too soon returns an
 empty profile — which only showed up by measuring it.
+
+### 2026-09-12 - 069c90f
+
+The asks loop. The agent can now stop, ask a human exactly one question by email, and carry the
+answer back onto the case without anyone opening the app. A reply lands on the same thread, gets
+classified, closes the ask and unblocks whatever was waiting on it (`convex/asks.ts`,
+`convex/mail/replies.ts`, `convex/mail/client.ts`).
+
+### 2026-09-13 - 177b175
+
+Boundary 2: anything binding is written and then **held**. A letter becomes an AgentMail draft and
+there is no code path that sends it without a human reply — approval sends, refusal rejects,
+anything else stays held (`convex/drafts.ts`).
+
+Case status stopped being assigned by each blocker and is now derived from the rows themselves, so
+rejecting a stale draft can no longer clear a case that is still genuinely waiting on a person
+(`convex/lib/status.ts`). Verification codes are pulled out of mail by anchored regex rather than a
+model, checked against a fixture set of real and decoy messages (`convex/mail/otp.ts`,
+`backend/experiments/otp-extraction.test.mjs`).
+
+### 2026-09-14 - 419864b
+
+Boundary 1: the agent signs itself up. When a portal needs an account it registers in its own name
+against the case inbox, then reads its own verification code out of that inbox and continues. No
+human is involved and no credential of the user's is used (`convex/browser/signup.ts`).
+
+Two ordering bugs, both found by running it rather than reading it: the account is marked
+`awaiting_code` *before* the form is submitted, because the code can arrive first; and the OTP check
+runs *before* the empty-body guard, because the code is sometimes only in the subject line.
+
+### 2026-09-14 - 6de49ef
+
+The chase itself. A case is now five independent tracks rather than one line, so one blocking does
+not stop the others (`convex/tracks.ts`, `convex/agent/decide.ts`). The chase is a durable workflow
+that writes, sleeps seven days, writes again, and escalates — `step.sleep` over weeks rather than a
+cron re-deriving state (`convex/workflows/chase.ts`, component `@convex-dev/workflow`).
+
+Two guards came out of real misbehaviour: machine mail — bounces, no-reply senders, verification
+codes — no longer opens a case, and researched policy text is only attached when the page hostname
+matches the company on the case, after an unrelated business's refund policy was stored as if it
+were theirs (`convex/mail/inbound.ts`, `convex/browser/research.ts`).
+
+### 2026-09-14 - f6fbf04
+
+Shared cases. Several people on one claim see the same board move without a refresh, and can see
+who else is looking at a case and who is holding the wheel during a handover (`convex/presence.ts`,
+`convex/members.ts`, `frontend/src/Presence.tsx`, component `@convex-dev/presence`). Proven with two
+independent browser contexts: a draft raised from outside both appeared in both, one person
+approved, and both dropped it — neither was reloaded.
+
+### 2026-09-14 - working tree
+
+Auth, and the design pass.
+
+Sign-in is a six-digit code emailed from the case inbox — no password anywhere, because the product
+already reaches people by email and this is the honest version of that (`convex/agentMailOtp.ts`,
+`convex/auth.ts`, `frontend/src/SignIn.tsx`). Convex Auth with a custom `Email` provider;
+`authTables` in the schema. Proven on production: code requested, code delivered, board opened,
+session survived a reload, sign-out returned to the sign-in screen.
+
+Adding it forced a routing change. Convex Auth serves its discovery documents at
+`/.well-known/...` and the token's `iss` claim is the site URL with no prefix, so those must be at
+the root — but static hosting owned the root and pushed our routes under `/api`. Moved to
+static-hosting's app-owned root routing and registered the static catch-all last. Exact routes win,
+so the inbound mail webhook kept its existing path and nothing had to be re-registered with the
+provider (`convex/convex.config.ts`, `convex/http.ts`).
+
+Fixed a visible inconsistency while verifying: a case could read "waiting on you" while the panel
+underneath said nothing was. Status counted a live handover as waiting on a human; the board's
+waiting list only gathered questions and held drafts. It now gathers live handovers too, and that
+row is the only one with a button rather than "reply to the email" (`convex/cases.ts`). The board
+query is also signed-in only now, because it returns handover tokens and a token is a credential.
+The handover page itself is deliberately *not* behind auth — somebody tapped a link on their phone
+and the token is the credential.
+
+Frontend rebuilt on shadcn/ui installed through its own CLI, with no hand-written primitives. Every
+content load is a skeleton of the real layout rather than a spinner. Cases carry an explicit
+`openedAt` because `_creationTime` is read-only and a case forwarded in today may already be six
+weeks old — elapsed time is the thing this product is actually about.

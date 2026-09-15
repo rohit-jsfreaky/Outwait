@@ -1,19 +1,28 @@
 import { httpRouter } from "convex/server";
+import { registerStaticRoutes } from "@convex-dev/static-hosting";
 import { httpAction } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { components, internal } from "./_generated/api";
 import { verifySvix } from "./lib/svix";
+import { auth } from "./auth";
 
 /**
- * Because `convex.config.ts` registers static hosting with
- * `defineApp({ httpPrefix: "/api" })`, everything routed here is served under
- * `/api`. The URL to register with AgentMail is therefore:
+ * This router owns the root. Exact routes are matched before the static
+ * catch-all registered at the bottom, so every URL here is stable.
+ *
+ * The AgentMail webhook keeps the literal path it was registered with when
+ * static hosting still owned the root:
  *
  *   https://<deployment>.convex.site/api/agentmail/webhook
  */
 const http = httpRouter();
 
+// Convex Auth's discovery documents. These MUST be at the root: the token's
+// `iss` claim is CONVEX_SITE_URL with no prefix, and Convex resolves the JWKS
+// by appending /.well-known/... to it.
+auth.addHttpRoutes(http);
+
 http.route({
-  path: "/agentmail/webhook",
+  path: "/api/agentmail/webhook",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     // Read the body as raw text. Signature verification is over the exact
@@ -105,5 +114,9 @@ http.route({
     return new Response(null, { status: 204 });
   }),
 });
+
+// Last: everything not matched above is the static site. Registered here
+// rather than mounted on the component so the routes above keep the root.
+registerStaticRoutes(http, components.staticHosting);
 
 export default http;

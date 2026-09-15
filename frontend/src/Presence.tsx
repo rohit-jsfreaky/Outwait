@@ -16,14 +16,14 @@ export function WhoElse({ roomId, me }: { roomId: string; me: string }) {
   const others = online.filter((p) => p.userId !== me)
 
   if (others.length === 0) {
-    return <span className="text-xs text-stone-400">Only you are looking at this.</span>
+    return <span className="text-xs text-muted-foreground">Only you are looking at this.</span>
   }
 
   return (
-    <span className="inline-flex items-center gap-2 text-xs text-emerald-800">
+    <span className="inline-flex items-center gap-2 text-xs text-mint">
       <span className="relative flex size-2">
-        <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-70" />
-        <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+        <span className="absolute inline-flex size-full animate-ping rounded-full bg-mint opacity-70" />
+        <span className="relative inline-flex size-2 rounded-full bg-mint" />
       </span>
       {others.length === 1
         ? `${short(others[0].userId)} is looking at this too`
@@ -46,10 +46,10 @@ export function WhoIsDriving({ roomId, me }: { roomId: string; me: string }) {
 
   return (
     <div className="text-sm">
-      <p className="text-stone-700">
+      <p className="text-foreground">
         {driver ? 'You are driving.' : 'Someone else is driving.'}{' '}
         {watchers.length > 0 && (
-          <span className="text-stone-500">
+          <span className="text-muted-foreground">
             {watchers.length === 1
               ? `${short(watchers[0].userId)} is watching, read-only.`
               : `${watchers.length} others are watching, read-only.`}

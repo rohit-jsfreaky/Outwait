@@ -3,10 +3,16 @@ import staticHosting from "@convex-dev/static-hosting/convex.config";
 import workflow from "@convex-dev/workflow/convex.config.js";
 import presence from "@convex-dev/presence/convex.config.js";
 
-// Your own HTTP endpoints (convex/http.ts) are served under /api so the
-// static site can own the root.
-const app = defineApp({ httpPrefix: "/api" });
-app.use(staticHosting, { httpPrefix: "/" });
+// App-owned root routing. The component's own HTTP mount is left off and the
+// static catch-all is registered inside convex/http.ts instead, because Convex
+// Auth must serve /.well-known/openid-configuration and /.well-known/jwks.json
+// from the ROOT — the token's `iss` claim is CONVEX_SITE_URL with no prefix, so
+// discovery under /api would never be found.
+//
+// Exact routes win over the catch-all, so the AgentMail webhook keeps its
+// existing /api/agentmail/webhook URL and nothing has to be re-registered.
+const app = defineApp();
+app.use(staticHosting);
 
 // Durable workflows. A chase runs for weeks: send, wait 7 days, follow up,
 // wait again, escalate. A workflow survives restarts and sleeps for free.

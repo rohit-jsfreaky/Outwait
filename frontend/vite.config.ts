@@ -13,6 +13,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@backend': fileURLToPath(new URL('../backend/convex', import.meta.url)),
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
 })

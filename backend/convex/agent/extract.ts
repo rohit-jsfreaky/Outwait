@@ -94,6 +94,7 @@ export const createCaseFromEmail = internalMutation({
       status: "working",
       summary: args.summary,
       ownerEmail,
+      openedAt: args.at,
       lastMovedAt: args.at,
     });
 

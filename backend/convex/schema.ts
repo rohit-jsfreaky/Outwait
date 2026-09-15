@@ -1,4 +1,5 @@
 import { defineSchema, defineTable } from "convex/server";
+import { authTables } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 
 // The data model from DESIGN.md section 7.
@@ -7,9 +8,10 @@ import { v } from "convex/values";
 // reactive query drives the whole board, which is also the Convex "live
 // updates" story for the judges.
 //
-// Auth lands in Phase 6 (multi-user + shared cases). Until then `createdBy` is
-// optional and `caseMembers` is unused, so adding Convex Auth later slots in
-// without reshaping anything.
+// Convex Auth owns `users` and its own session/token tables via `authTables`.
+// `createdBy` and `ownerEmail` stay plain strings rather than user ids on
+// purpose: most people who touch a case arrive by replying to an email and have
+// never signed in, and the product must keep working for them.
 
 export const trackKind = v.union(
   v.literal("email"),
@@ -36,6 +38,9 @@ export const askKind = v.union(
 );
 
 export default defineSchema({
+  // users, authSessions, authAccounts, authVerificationCodes, ...
+  ...authTables,
+
   cases: defineTable({
     title: v.string(),
     company: v.object({
@@ -60,6 +65,10 @@ export default defineSchema({
     // Who forwarded the email in. This is who the agent writes back to.
     ownerEmail: v.optional(v.string()),
     deadline: v.optional(v.number()),
+    // When the claim actually started. Separate from _creationTime because
+    // that is read-only, and a case forwarded in today may already be six
+    // weeks old — the elapsed time is the whole point of the product.
+    openedAt: v.optional(v.number()),
     lastMovedAt: v.number(),
   })
     .index("by_status", ["status"])
@@ -172,6 +181,7 @@ export default defineSchema({
   })
     // The one-tap link carries only this token, so it must be indexed.
     .index("by_token", ["token"])
+    .index("by_state", ["state"])
     .index("by_caseId", ["caseId"]),
 
   browserSessions: defineTable({

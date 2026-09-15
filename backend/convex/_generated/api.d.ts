@@ -8,10 +8,13 @@
  * @module
  */
 
+import type * as admin from "../admin.js";
 import type * as agent_decide from "../agent/decide.js";
 import type * as agent_extract from "../agent/extract.js";
 import type * as agent_model from "../agent/model.js";
+import type * as agentMailOtp from "../agentMailOtp.js";
 import type * as asks from "../asks.js";
+import type * as auth from "../auth.js";
 import type * as browser_firecrawl from "../browser/firecrawl.js";
 import type * as browser_research from "../browser/research.js";
 import type * as browser_signup from "../browser/signup.js";
@@ -28,6 +31,7 @@ import type * as mail_replies from "../mail/replies.js";
 import type * as members from "../members.js";
 import type * as presence from "../presence.js";
 import type * as tracks from "../tracks.js";
+import type * as users from "../users.js";
 import type * as workflows_chase from "../workflows/chase.js";
 
 import type {
@@ -37,10 +41,13 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  admin: typeof admin;
   "agent/decide": typeof agent_decide;
   "agent/extract": typeof agent_extract;
   "agent/model": typeof agent_model;
+  agentMailOtp: typeof agentMailOtp;
   asks: typeof asks;
+  auth: typeof auth;
   "browser/firecrawl": typeof browser_firecrawl;
   "browser/research": typeof browser_research;
   "browser/signup": typeof browser_signup;
@@ -57,6 +64,7 @@ declare const fullApi: ApiFromModules<{
   members: typeof members;
   presence: typeof presence;
   tracks: typeof tracks;
+  users: typeof users;
   "workflows/chase": typeof workflows_chase;
 }>;
 
