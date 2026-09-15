@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth
 - **AI models:** openai/gpt-5.6-luna (via OpenRouter)
 - **Started:** 2026-09-12T09:10:36Z
-- **Last updated:** 2026-09-14T15:33:04Z
+- **Last updated:** 2026-09-15T10:33:15Z
 
 ## Log
 
@@ -141,7 +141,7 @@ who else is looking at a case and who is holding the wheel during a handover (`c
 independent browser contexts: a draft raised from outside both appeared in both, one person
 approved, and both dropped it — neither was reloaded.
 
-### 2026-09-14 - working tree
+### 2026-09-14 - 3b2fb6e
 
 Auth, and the design pass.
 
@@ -170,3 +170,42 @@ Frontend rebuilt on shadcn/ui installed through its own CLI, with no hand-writte
 content load is a skeleton of the real layout rather than a spinner. Cases carry an explicit
 `openedAt` because `_creationTime` is read-only and a case forwarded in today may already be six
 weeks old — elapsed time is the thing this product is actually about.
+
+### 2026-09-15 - 3b2fb6e
+
+The product got its own face, and the board stopped being a console.
+
+Brand assets are generated rather than borrowed: a mark that is the letter O and an hourglass cut
+out of one solid shape, an Open Graph card, and six line drawings used as spot art. All trimmed,
+recoloured to sit on either surface, and converted to webp (`frontend/public/brand/`). Meta and
+favicons wired up in `frontend/index.html`.
+
+The landing page was rebuilt around the one thing this product is about — elapsed time. It is
+monochrome by choice, with no gradients anywhere, and it opens on a ledger of a real seven-week
+claim where the person appears on exactly two of the seven rows. Dot Grid and Count Up come from
+React Bits, installed through the shadcn CLI (`frontend/src/Landing.tsx`,
+`frontend/src/components/`).
+
+The board was split into screens. It had been one page carrying every case, every step and the
+whole activity log at once, which is a demo rather than a product — nothing could be more important
+than anything else. Now a list, a claim opened on its own URL, and history behind a click, with real
+`pushState` routes and a working back button (`frontend/src/nav.ts`, `frontend/src/App.tsx`).
+`cases.get` was rewritten to serve that detail screen in one subscription — signed-in only, because
+it returns handover tokens, with storage URLs for evidence and that case's own open questions
+(`convex/cases.ts`).
+
+Then the wording was rewritten for the person who actually uses this. RUNNING became "Happening
+now", BLOCKED became "Needs you", "2/5 steps" became a progress bar and "2 of 5 finished", and the
+screen opens with a sentence — how much is being chased, across how many claims, for how long.
+Monospace and all-caps labels are gone from the interface entirely; steps render as a timeline with
+ticks instead of a table.
+
+Two repairs worth recording. `convex/admin.ts` holds internal-only mutations for rewriting an
+address across every table and for seeding demo claims through the real tables, because a demo mode
+that is separate from the product is a thing that can be true on screen and false underneath. And
+`frontend/src/surface.ts` sets `color-scheme` per screen: the scrollbar gutter is painted by the
+browser, so a near-black page under a light color-scheme gets a white scrollbar track down its side.
+
+The email spine was re-verified end to end after the earlier routing change, with a real forwarded
+message: signed webhook, model extraction, and a new case with the company, amount and reference
+pulled out of the mail on its own.
