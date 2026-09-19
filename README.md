@@ -10,6 +10,7 @@ An agent that chases a company for money they owe you — for weeks, on its own 
 and taps you only for the ten seconds that genuinely need a human.
 
 [**Live app**](https://tangible-finch-783.convex.site) ·
+[**Check it yourself**](https://tangible-finch-783.convex.site/#check) ·
 [Build log](hackathon.md) ·
 [The three boundaries](#the-three-boundaries) ·
 [How it works](#how-it-works) ·
@@ -97,6 +98,29 @@ jargon, no log to decode.
 <div align="center">
 <img src="docs/screens/claim.webp" alt="A single claim" width="820" />
 </div>
+
+### Don't take our word for it
+
+The claim this product makes is checkable, so the landing page lets you check it. Name a company
+you have actually dealt with and the same code that runs on a real claim goes and reads their own
+pages, finds the deadline they set for themselves, and shows you the sentence it came from with a
+link. If they publish nothing, it says that instead.
+
+<div align="center">
+<img src="docs/screens/check.webp" alt="Reading a company's published policy, live" width="820" />
+</div>
+
+No model is in that path. The number is found by anchored regex over the page text and checked
+against fixtures of real policy wording — including the sentences that must **not** count. A
+company pointing at your bank (*"it can take up to five working days for your bank to process
+it"*), a payment provider's window (*"PayPal refunds can take up to 30 days"*), an eligibility
+window that looks backwards (*"within 10 days prior to your flight"*) and a deadline placed on
+**you** (*"you must return the item within 14 days"*) are all real sentences from real pages, and
+none of them is a promise the company made. Each one is a fixture
+(`backend/experiments/promise-extraction.test.mjs`, 32 cases).
+
+On a real claim that number lands on the case with the date it runs out, and that sentence is what
+gets quoted back at them.
 
 ---
 
@@ -193,10 +217,13 @@ bug where clearing one blocker wrongly cleared the case.
 
 Two different jobs, and the second one is the interesting one.
 
-- **Reading.** `/v2/scrape` pulls the company's own published policy so a letter can quote it
-  back at them. Guarded: researched text is only attached when the page hostname matches the
-  company on the case, after an unrelated business's refund policy was once stored as if it
-  were theirs.
+- **Reading.** `/v2/search` finds the company's own published pages and `/v2/scrape` renders and
+  reads them, so a letter can quote their own deadline back at them. Guarded twice: text is only
+  attached when the page hostname matches the company on the case — after an unrelated business's
+  refund policy was once stored as if it were theirs — and the number itself comes out by regex,
+  never a model. This is also what powers
+  [Check it yourself](https://tangible-finch-783.convex.site/#check), where anyone can point the
+  same code at any company and watch it work, cached by hostname so it costs a credit once.
 - **Operating.** `/interact` drives a real browser to fill in portals — and
   `interactiveLiveViewUrl` is what makes boundary 3 possible: the same live session handed to
   a human, mid-flight, then handed back. Named profiles persist the login so it is asked for
@@ -283,9 +310,11 @@ cost a machine should absorb.
 Surfacing that as a dated plan — *"I write again on the 26th; if nothing by the 3rd, I file
 with the ombudsman"* — turns waiting from an absence into something you can see coming.
 
-**Their own deadline, counted back.** The research step already finds the company's published
-turnaround. Holding it up against the calendar — *"their policy says 30 days; that was 47 days
-ago"* — makes the case for escalation before anyone has to argue it.
+**Watching the promise change.** A company quietly editing its own turnaround from 14 days to 30
+is exactly the kind of thing nobody notices, because the old page is gone the moment it is saved.
+The sentence and the date it was read are already stored, so keeping every version and telling
+people when one moves is a small step from here — and it would make a category of quiet
+rule-changing visible for the first time.
 
 **Sessions that outlive the site's own.** A saved login lasts only as long as the company's
 session does — minutes at a bank, months at a small portal. Re-authenticating without asking

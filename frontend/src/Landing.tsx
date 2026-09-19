@@ -1,7 +1,11 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
+import { useAction } from 'convex/react'
+import { api } from '@backend/_generated/api'
 import { ArrowRight, ArrowUpRight } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Spinner } from '@/components/ui/spinner'
 import DotGrid from '@/components/DotGrid'
 import CountUp from '@/components/CountUp'
 
@@ -28,6 +32,7 @@ export default function Landing({ onOpen }: { onOpen: () => void }) {
       <Hero onOpen={onOpen} />
       <Ledger />
       <TheTrick />
+      <CheckItYourself />
       <Boundaries />
       <TheBoard />
       <EmailFirst />
@@ -170,6 +175,9 @@ function Nav({ onOpen }: { onOpen: () => void }) {
         </a>
         <a href="#trick" className="transition-colors hover:text-paper">
           The trick
+        </a>
+        <a href="#check" className="transition-colors hover:text-paper">
+          Check it
         </a>
         <a href="#boundaries" className="transition-colors hover:text-paper">
           Where you stand
@@ -317,6 +325,207 @@ function TheTrick() {
 
 /* --- boundaries ----------------------------------------------------------- */
 
+/* --- check it yourself ---------------------------------------------------- */
+
+/** Companies that publish a turnaround, so the thing has something to find. */
+const TRY = ['argos.co.uk', 'currys.co.uk', 'ryanair.com']
+
+type Result = Awaited<ReturnType<ReturnType<typeof useAction<typeof api.policy.read>>>>
+
+function sayPromise(p: { days: number; unit: string }) {
+  const noun =
+    p.unit === 'working'
+      ? 'working day'
+      : p.unit === 'week'
+        ? 'week'
+        : p.unit === 'month'
+          ? 'month'
+          : 'day'
+  return `${p.days} ${noun}${p.days === 1 ? '' : 's'}`
+}
+
+/**
+ * The only thing on this page a stranger can make the agent actually go and do.
+ *
+ * Everything else here is us telling you something. This is the same code that
+ * runs on a real claim, pointed at a company you choose, reading their live
+ * page while you wait — and then showing you the sentence and the link, so the
+ * first thing you can do is click through and find it still there.
+ *
+ * It is allowed to come back with nothing, and it says so plainly when it does.
+ * A page that does not publish a number is the ordinary case, and inventing one
+ * would break the only thing this section is for.
+ */
+function CheckItYourself() {
+  const read = useAction(api.policy.read)
+  const [domain, setDomain] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<Result | null>(null)
+
+  async function go(value: string) {
+    const v = value.trim()
+    if (!v || busy) return
+    setBusy(true)
+    setResult(null)
+    try {
+      setResult(await read({ domain: v }))
+    } catch {
+      setResult({ ok: false, reason: 'That did not go through. Try again in a moment.' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Section id="check">
+      <Container className="grid items-start gap-y-12 lg:grid-cols-12 lg:gap-x-16">
+        {/* The drawing sits beside the question, not beside the answer — the
+            result below can run long, and it should not drag the art down. */}
+        <Doodle
+          name="magnifier"
+          className="col-start-1 row-start-1 hidden h-56 w-auto justify-self-end lg:col-span-4 lg:col-start-9 lg:mt-4 lg:block"
+        />
+
+        <div className="col-start-1 row-start-1 lg:col-span-8">
+          <Eyebrow n="03">Check it yourself</Eyebrow>
+          <h2
+            className="font-display mt-5 max-w-[18ch] text-[clamp(30px,4.2vw,50px)] leading-[1.02] font-medium tracking-[-0.035em]"
+            data-reveal
+          >
+            Do not take our word for it.
+          </h2>
+          <p className="mt-6 max-w-[58ch] text-[17px] leading-relaxed text-dim" data-reveal>
+            Name a company you have actually dealt with. The same code that runs on a real claim
+            will go and read their own pages, find the deadline they set themselves, and show you
+            the sentence it came from. If they do not publish one, it will tell you that instead.
+          </p>
+
+          <div className="mt-10 max-w-[620px]" data-reveal>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              void go(domain)
+            }}
+            className="flex flex-wrap items-center gap-3"
+          >
+            <Input
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+              placeholder="argos.co.uk"
+              aria-label="A company's website"
+              spellCheck={false}
+              autoCapitalize="off"
+              className="h-12 min-w-0 flex-1 rounded-full border-hair bg-ink-700 px-5 text-[15px] placeholder:text-paper/25"
+            />
+            <Button
+              type="submit"
+              size="lg"
+              disabled={busy}
+              className="h-12 rounded-full bg-paper px-7 text-[15px] font-medium text-ink hover:bg-paper/85"
+            >
+              {busy && <Spinner />}
+              {busy ? 'Reading their site…' : 'Read their policy'}
+            </Button>
+          </form>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2 text-[13px] text-dim">
+            <span>or try</span>
+            {TRY.map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => {
+                  setDomain(d)
+                  void go(d)
+                }}
+                className="rounded-full border border-hair px-3 py-1 font-mono text-[12px] transition-colors hover:border-paper/40 hover:text-paper"
+              >
+                {d}
+              </button>
+            ))}
+          </div>
+
+            <div aria-live="polite">
+              {result && <ReadResult result={result} />}
+            </div>
+          </div>
+        </div>
+      </Container>
+    </Section>
+  )
+}
+
+function ReadResult({ result }: { result: Result }) {
+  if (!result.ok) {
+    return <p className="mt-8 text-[15px] text-dim">{result.reason}</p>
+  }
+
+  if (!result.promise) {
+    return (
+      <div className="mt-8 border-t border-hair pt-6">
+        <p className="text-[17px] leading-relaxed">
+          <span className="font-mono text-[15px]">{result.domain}</span> does not publish a
+          deadline we can find.
+        </p>
+        <p className="mt-2 max-w-[54ch] text-[15px] leading-relaxed text-dim">
+          That is the ordinary case, and it is worth knowing: with nothing published, the only
+          promise on record is whatever they put in an email to you. So that is what a claim
+          quotes back instead.
+        </p>
+        {result.source && (
+          <a
+            href={result.source}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 inline-flex items-center gap-1 text-[13px] text-dim underline-offset-4 hover:text-paper hover:underline"
+          >
+            the page it read
+            <ArrowUpRight className="size-3.5" />
+          </a>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-8 border-t border-hair pt-6">
+      <p className="font-mono text-[11px] tracking-[0.2em] text-dim uppercase">
+        {result.domain} gives itself
+      </p>
+      <p className="font-display mt-3 text-[clamp(34px,5vw,56px)] leading-none font-medium tracking-[-0.035em]">
+        {sayPromise(result.promise)}
+      </p>
+
+      <blockquote className="mt-6 max-w-[62ch] border-l-2 border-hair pl-5 text-[16px] leading-relaxed text-paper/80">
+        “{result.promise.quote}”
+      </blockquote>
+
+      <p className="mt-4 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-dim">
+        {result.source && (
+          <a
+            href={result.source}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 underline-offset-4 hover:text-paper hover:underline"
+          >
+            open the page and look
+            <ArrowUpRight className="size-3.5" />
+          </a>
+        )}
+        <span aria-hidden>·</span>
+        <span>{result.cached ? 'read earlier, cached' : 'read just now'}</span>
+      </p>
+
+      <p className="mt-6 max-w-[54ch] text-[15px] leading-relaxed text-dim">
+        On a real claim that number goes on the case with the date it runs out, and the sentence
+        above is what gets quoted back at them.
+      </p>
+    </div>
+  )
+}
+
+/* --- boundaries ----------------------------------------------------------- */
+
 function Boundaries() {
   const rows = [
     {
@@ -342,7 +551,7 @@ function Boundaries() {
   return (
     <Section id="boundaries">
       <Container>
-        <Eyebrow n="03">Where you stand</Eyebrow>
+        <Eyebrow n="04">Where you stand</Eyebrow>
         <h2
           className="font-display mt-5 max-w-[18ch] text-[clamp(30px,4.2vw,50px)] leading-[1.02] font-medium tracking-[-0.035em]"
           data-reveal
@@ -390,7 +599,7 @@ function TheBoard() {
     <Section id="board">
       <Container>
         <div className="max-w-[54ch]">
-          <Eyebrow n="04">The board</Eyebrow>
+          <Eyebrow n="05">The board</Eyebrow>
           <h2
             className="font-display mt-5 text-[clamp(30px,4.2vw,50px)] leading-[1.02] font-medium tracking-[-0.035em]"
             data-reveal
@@ -505,7 +714,7 @@ function EmailFirst() {
       <Container>
         <div className="grid items-start gap-14 md:grid-cols-2 md:gap-20">
           <div>
-            <Eyebrow n="05">How it reaches you</Eyebrow>
+            <Eyebrow n="06">How it reaches you</Eyebrow>
             <h2
               className="font-display mt-5 text-[clamp(30px,4.2vw,50px)] leading-[1.02] font-medium tracking-[-0.035em]"
               data-reveal
@@ -593,7 +802,7 @@ function Limits() {
       <Container>
         <div className="grid items-start gap-14 md:grid-cols-[0.8fr_1.2fr] md:gap-20">
           <div>
-            <Eyebrow n="06">Being straight with you</Eyebrow>
+            <Eyebrow n="07">Being straight with you</Eyebrow>
             <h2
               className="font-display mt-5 text-[clamp(28px,3.6vw,42px)] leading-[1.04] font-medium tracking-[-0.035em]"
               data-reveal

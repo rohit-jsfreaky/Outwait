@@ -605,6 +605,22 @@ function Home({ go }: { go: (v: View) => void }) {
                           last moved {when(c.lastMovedAt)}
                         </span>
                       </div>
+
+                      {/* Their own published number, against the real clock.
+                          The full sentence and the link are on the claim. */}
+                      {c.promise && (
+                        <p className="mt-2.5 text-[13.5px] text-dim">
+                          their policy says {sayPromise(c.promise)} —{' '}
+                          <span
+                            className={
+                              daysOver(c.deadline) > 0 ? 'font-medium text-amber-400' : ''
+                            }
+                          >
+                            this is day{' '}
+                            {Math.max(1, Math.round((Date.now() - c.openedAt) / 86400000))}
+                          </span>
+                        </p>
+                      )}
                     </div>
 
                     <div className="shrink-0 sm:w-[190px]">
@@ -691,6 +707,120 @@ function Home({ go }: { go: (v: View) => void }) {
 
 /* --- one claim ------------------------------------------------------------ */
 
+/* --- their own deadline --------------------------------------------------- */
+
+type Promised = {
+  days: number
+  unit: 'working' | 'calendar' | 'week' | 'month'
+  quote: string
+  source: string
+  readAt: number
+}
+
+/** Their number, in their noun. */
+function sayPromise(p: Promised) {
+  const noun =
+    p.unit === 'working'
+      ? 'working day'
+      : p.unit === 'week'
+        ? 'week'
+        : p.unit === 'month'
+          ? 'month'
+          : 'day'
+  return `${p.days} ${noun}${p.days === 1 ? '' : 's'}`
+}
+
+function hostOf(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
+}
+
+/**
+ * How far past their own deadline this claim is, in days, or 0.
+ *
+ * A week of slack is subtracted first. Working days are counted Monday to
+ * Friday with no public holidays, which can only put the computed date earlier
+ * than the real one — so the agent stays quiet until that can no longer be the
+ * explanation.
+ */
+function daysOver(deadline?: number) {
+  if (!deadline) return 0
+  return Math.max(0, Math.floor((Date.now() - deadline) / 86400000) - 7)
+}
+
+/**
+ * The one number on this screen that did not come from us or from the person.
+ *
+ * It is read off the company's own published policy, quoted word for word, and
+ * linked — so the first thing a sceptic can do is click through and find the
+ * sentence still sitting there. No model touches it, and when a page did not
+ * clearly say, this block does not render at all rather than guess.
+ */
+function TheirDeadline({
+  promise,
+  deadline,
+  openedAt,
+}: {
+  promise: Promised
+  deadline?: number
+  openedAt: number
+}) {
+  const days = Math.max(1, Math.round((Date.now() - openedAt) / 86400000))
+  const over = daysOver(deadline)
+
+  return (
+    <Card className="mt-7 gap-0 rounded-2xl border-hair bg-ink-700 py-0 shadow-none">
+      <CardContent className="p-5">
+        <p className="text-[12.5px] font-medium tracking-wide text-dim uppercase">
+          Their own deadline
+        </p>
+
+        <div className="mt-3.5 flex flex-wrap items-end gap-x-10 gap-y-4">
+          <div>
+            <p className="font-display text-[30px] leading-none font-semibold tracking-tight">
+              {sayPromise(promise)}
+            </p>
+            <p className="mt-2 text-[13px] text-dim">what they publish</p>
+          </div>
+          <div>
+            <p
+              className={`font-display text-[30px] leading-none font-semibold tracking-tight ${
+                over > 0 ? 'text-amber-400' : ''
+              }`}
+            >
+              day {days}
+            </p>
+            <p className="mt-2 text-[13px] text-dim">
+              {over > 0 ? `${over} days past it` : 'where this claim is'}
+            </p>
+          </div>
+        </div>
+
+        <blockquote className="mt-5 border-l-2 border-hair pl-4 text-[14.5px] leading-relaxed text-paper/80">
+          “{promise.quote}”
+        </blockquote>
+
+        <p className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-dim">
+          <a
+            href={promise.source}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 underline-offset-4 hover:text-paper hover:underline"
+          >
+            {hostOf(promise.source)}
+            <ArrowUpRight className="size-3.5" />
+          </a>
+          <span aria-hidden>·</span>
+          <span>read {when(promise.readAt)}</span>
+        </p>
+      </CardContent>
+    </Card>
+  )
+}
+
 function CaseView({ id, go }: { id: string; go: (v: View) => void }) {
   const c = useQuery(api.cases.get, { caseId: id as Id<'cases'> })
   if (c === undefined) return <CaseSkeleton />
@@ -731,6 +861,14 @@ function CaseView({ id, go }: { id: string; go: (v: View) => void }) {
             <p className="max-w-[72ch] text-[16px] leading-relaxed text-paper/80">
               {c.summary}
             </p>
+          )}
+
+          {c.promise && (
+            <TheirDeadline
+              promise={c.promise}
+              deadline={c.deadline}
+              openedAt={c.openedAt}
+            />
           )}
 
           {c.waiting.length > 0 && (

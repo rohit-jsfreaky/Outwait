@@ -1,6 +1,8 @@
 import { v } from "convex/values";
 import { internalAction, internalMutation } from "../_generated/server";
 import { internal } from "../_generated/api";
+import { dueAt, extractPromise, sayPromise, type Promised } from "../lib/promise";
+import { promiseUnit } from "../schema";
 
 /**
  * The research track: read the company's own policy, and find who they answer
@@ -29,6 +31,27 @@ async function firecrawl(path: string, body: unknown): Promise<any> {
 }
 
 export type Found = { title: string; url: string; snippet: string };
+
+/**
+ * Read a page properly, rather than trusting the search snippet.
+ *
+ * A snippet is ~160 characters chosen by a search engine to look relevant. The
+ * sentence that actually carries a company's own deadline is almost never in
+ * it, and on the pages that matter it is usually inside an accordion that only
+ * exists after the page runs. So the page gets rendered and read in full.
+ */
+export async function scrape(url: string): Promise<string> {
+  const json = await firecrawl("/scrape", {
+    url,
+    formats: ["markdown"],
+    onlyMainContent: true,
+    // Their own words are the whole point — banners and nav are not.
+    excludeTags: ["nav", "header", "footer", "script", "style"],
+    waitFor: 1200,
+    timeout: 25000,
+  });
+  return String(json?.data?.markdown ?? "");
+}
 
 /** Web search, scoped to what actually helps a case. */
 export async function search(query: string, limit = 5): Promise<Found[]> {
@@ -185,6 +208,27 @@ export const readTheirPolicy = internalAction({
         return null;
       }
 
+      // Read the pages they publish, best match first, and stop at the first
+      // one that actually states a deadline. Two is the cap: a third scrape
+      // rarely finds what the first two did not, and this runs on every case.
+      let promise: Promised | null = null;
+      let promiseFrom = "";
+      for (const hit of hits.slice(0, 2)) {
+        let page = "";
+        try {
+          page = await scrape(hit.url);
+        } catch {
+          // A page that will not render is not a failed case. Keep the source.
+          continue;
+        }
+        const found = extractPromise(page);
+        if (found) {
+          promise = found;
+          promiseFrom = hit.url;
+          break;
+        }
+      }
+
       const best = hits[0];
       await ctx.runMutation(internal.browser.research.recordPolicy, {
         caseId: args.caseId,
@@ -192,6 +236,14 @@ export const readTheirPolicy = internalAction({
         title: best.title,
         url: best.url,
         snippet: best.snippet,
+        promise: promise
+          ? {
+              days: promise.days,
+              unit: promise.unit,
+              quote: promise.quote,
+              source: promiseFrom,
+            }
+          : undefined,
       });
       return null;
     } catch (err) {
@@ -212,8 +264,13 @@ export const recordPolicy = internalMutation({
     title: v.string(),
     url: v.string(),
     snippet: v.string(),
+    promise: v.optional(
+      v.object({ days: v.number(), unit: promiseUnit, quote: v.string(), source: v.string() }),
+    ),
   },
   handler: async (ctx, args) => {
+    const now = Date.now();
+
     await ctx.db.insert("evidence", {
       caseId: args.caseId,
       kind: "their_policy",
@@ -221,18 +278,48 @@ export const recordPolicy = internalMutation({
       locator: args.title,
       text: args.snippet,
       readBy: "code",
-      at: Date.now(),
+      at: now,
     });
+
+    if (args.promise) {
+      const c = await ctx.db.get("cases", args.caseId);
+      const p = { ...args.promise, readAt: now };
+
+      await ctx.db.patch("cases", args.caseId, {
+        promise: p,
+        // Counted from when the claim really started, not from when we read
+        // the page — a case forwarded in today may already be six weeks old.
+        deadline: dueAt(c?.openedAt ?? c?._creationTime ?? now, p),
+      });
+
+      // The sentence itself is evidence, separate from the page it came from.
+      // It is what gets quoted back at them, so it is stored verbatim.
+      await ctx.db.insert("evidence", {
+        caseId: args.caseId,
+        kind: "their_promise",
+        source: args.promise.source,
+        locator: sayPromise(p),
+        text: args.promise.quote,
+        readBy: "code",
+        at: now,
+      });
+    }
+
     await ctx.db.patch("tracks", args.trackId, {
       state: "done",
-      detail: args.title.slice(0, 70),
-      lastMovedAt: Date.now(),
+      detail: args.promise
+        ? `They promise ${sayPromise({ ...args.promise, quote: "" })}`
+        : args.title.slice(0, 70),
+      lastMovedAt: now,
     });
+
     await ctx.db.insert("events", {
       caseId: args.caseId,
       type: "research.policy",
-      text: `Read their own policy: ${args.title.slice(0, 66)}`,
-      at: Date.now(),
+      text: args.promise
+        ? `Their own policy says ${sayPromise({ ...args.promise, quote: "" })}. That is now on the case, in their words.`
+        : `Read their own policy: ${args.title.slice(0, 66)}`,
+      at: now,
     });
     return null;
   },

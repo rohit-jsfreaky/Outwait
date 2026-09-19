@@ -29,6 +29,20 @@ export const trackState = v.union(
   v.literal("abandoned"),
 );
 
+/** The noun a company used for its own deadline. Theirs, not ours. */
+export const promiseUnit = v.union(
+  v.literal("working"),
+  v.literal("calendar"),
+  v.literal("week"),
+  v.literal("month"),
+);
+
+export const promised = v.object({
+  days: v.number(),
+  unit: promiseUnit,
+  quote: v.string(),
+});
+
 export const askKind = v.union(
   v.literal("confirm"),
   v.literal("fact"),
@@ -64,6 +78,22 @@ export default defineSchema({
     createdBy: v.optional(v.string()),
     // Who forwarded the email in. This is who the agent writes back to.
     ownerEmail: v.optional(v.string()),
+    // The deadline the company set for ITSELF, read off its own published
+    // policy — the one number on a case that did not come from us or from the
+    // person. `deadline` is that promise landed on this case's calendar.
+    //
+    // Pulled out by anchored regex, never by a model: it is quoted verbatim on
+    // screen next to a link to the page, so a wrong number is a lie anyone can
+    // check in one click. Absent whenever the page did not clearly say.
+    promise: v.optional(
+      v.object({
+        days: v.number(),
+        unit: promiseUnit,
+        quote: v.string(),
+        source: v.string(),
+        readAt: v.number(),
+      }),
+    ),
     deadline: v.optional(v.number()),
     // When the claim actually started. Separate from _creationTime because
     // that is read-only, and a case forwarded in today may already be six
@@ -200,6 +230,29 @@ export default defineSchema({
   })
     .index("by_caseId", ["caseId"])
     .index("by_scrapeId", ["scrapeId"]),
+
+  /**
+   * Every "read this company's policy" lookup anyone has run, by hostname.
+   *
+   * This is the one thing on the site a stranger can make the agent go and do,
+   * so it is cached rather than re-run: the second person to ask about a
+   * company gets the first person's answer instantly, for no credits and no
+   * extra load on that company's site. A miss is stored too — knowing a page
+   * says nothing is an answer, and re-reading it hourly would be rude.
+   */
+  policyReads: defineTable({
+    domain: v.string(),
+    promise: v.optional(promised),
+    title: v.optional(v.string()),
+    source: v.optional(v.string()),
+    readAt: v.number(),
+    // Which version of the extractor produced this. A row written by an older
+    // one is ignored and re-read, so improving the rules cannot leave a worse
+    // answer cached on a public page for a week.
+    ver: v.optional(v.number()),
+  })
+    .index("by_domain", ["domain"])
+    .index("by_readAt", ["readAt"]),
 
   evidence: defineTable({
     caseId: v.id("cases"),

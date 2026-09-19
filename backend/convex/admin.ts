@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { internalMutation } from "./_generated/server";
+import { internalAction, internalMutation, internalQuery } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { askKind } from "./schema";
 import type { Id } from "./_generated/dataModel";
 
@@ -304,6 +305,71 @@ export const seedAsks = internalMutation({
       );
     }
     return { ids };
+  },
+});
+
+/**
+ * Re-read a company's published policy for one case, now.
+ *
+ * The research track normally runs once, when the case opens. This exists
+ * because the thing it pulls out — the deadline the company set for itself —
+ * is the one number on a case that comes from outside, and a page that was
+ * unreadable on Tuesday may render fine on Thursday. Also how a case opened
+ * before this track existed gets its number.
+ */
+export const rereadPolicy = internalAction({
+  args: { caseId: v.id("cases") },
+  handler: async (ctx, { caseId }): Promise<{ ok: boolean; detail: string }> => {
+    const snapshot = await ctx.runQuery(internal.workflows.chase.caseSnapshot, { caseId });
+    if (!snapshot) return { ok: false, detail: "no such case" };
+
+    const trackId = await ctx.runMutation(internal.admin.researchTrack, { caseId });
+
+    await ctx.runAction(internal.browser.research.readTheirPolicy, {
+      caseId,
+      trackId,
+      company: snapshot.company,
+      domain: snapshot.domain,
+    });
+
+    const after = await ctx.runQuery(internal.admin.promiseOf, { caseId });
+    return after
+      ? { ok: true, detail: `${after.days} ${after.unit} — ${after.source}` }
+      : { ok: true, detail: "nothing they publish says a number" };
+  },
+});
+
+/** The research track for a case, reset to ready — created if it never existed. */
+export const researchTrack = internalMutation({
+  args: { caseId: v.id("cases") },
+  handler: async (ctx, { caseId }): Promise<Id<"tracks">> => {
+    const tracks = await ctx.db
+      .query("tracks")
+      .withIndex("by_caseId", (q) => q.eq("caseId", caseId))
+      .take(20);
+
+    const existing = tracks.find((t) => t.kind === "research" && t.label.includes("own policy"));
+    if (existing) {
+      await ctx.db.patch("tracks", existing._id, { state: "ready", lastMovedAt: Date.now() });
+      return existing._id;
+    }
+
+    return await ctx.db.insert("tracks", {
+      caseId,
+      kind: "research",
+      label: "Read their own policy",
+      state: "ready",
+      detail: "Looking for the deadline they set themselves",
+      lastMovedAt: Date.now(),
+    });
+  },
+});
+
+export const promiseOf = internalQuery({
+  args: { caseId: v.id("cases") },
+  handler: async (ctx, { caseId }) => {
+    const c = await ctx.db.get("cases", caseId);
+    return c?.promise ?? null;
   },
 });
 

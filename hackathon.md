@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth
 - **AI models:** openai/gpt-5.6-luna (via OpenRouter)
 - **Started:** 2026-09-12T09:10:36Z
-- **Last updated:** 2026-09-19T11:02:03Z
+- **Last updated:** 2026-09-19T14:05:00Z
 
 ## Log
 
@@ -251,3 +251,45 @@ of them — 1.00%. The disputes that do happen are ordinary ones (cleaning 54%, 
 redecoration 31%), which is the point: the other 99% are not clean returns, they are people who
 stopped. Every figure is sourced to the TDS Statistical Briefing 2025 and attributed inline.
 Screenshots are taken from the live deployment, not mocked (`docs/screens/`).
+
+### 2026-09-19 - working tree (2)
+
+The one number on the board that did not come from us.
+
+Every claim now carries the deadline the company set for **itself**, read off its own published
+page, quoted word for word, with a link. `convex/lib/promise.ts` pulls it out by anchored regex —
+no model, on purpose, because that sentence sits next to a link and a wrong number is a lie anyone
+can check in one click. `cases.deadline` finally means something: the promise landed on this
+claim's calendar, counted from when the claim actually started.
+
+The decoys were the work, not the hits. Four kinds of sentence look exactly like a promise and are
+not one, and all four are real text from real pages: a deadline placed on **you** ("you must
+return the item within 14 days"), somebody else's clock ("it can take up to five working days for
+your bank to process it" — Argos), a payment provider's window ("PayPal refunds can take up to 30
+days, while Klarna refunds can take up to 14 days" — Argos again) and a window that looks
+backwards ("within 10 days prior to your flight" — Ryanair, where the ten days is eligibility, not
+turnaround). Each one is a fixture now; 32 cases in
+`experiments/promise-extraction.test.mjs`, and the rule throughout is that silence beats a guess.
+
+Working days are counted Monday to Friday with no public-holiday calendar, which can only put the
+computed date **earlier** than the true one. So nothing calls a company late off that arithmetic:
+`GRACE_DAYS` is a full week, and the screen shows two facts — what they publish, what day this is —
+and leaves the subtraction to the reader.
+
+Then the same thing was opened to anyone, because an argument you cannot check is just a claim.
+`convex/policy.ts` is a public action behind a new landing section: type a company you have
+actually dealt with and the code that runs on a real claim goes and reads their pages while you
+wait. Argos gives itself 14 days, Ryanair 5 working days, and Currys publishes nothing we can find
+— which it says plainly rather than inventing something. Answers are cached by hostname for a
+week, so the second person to ask about a company costs nothing, and each row carries the
+extractor version that produced it: improving the rules invalidates the old answers instead of
+leaving a worse one live for a week.
+
+Three wrong answers were found by running it against real sites rather than by reading the code,
+and each one became a fixture before it became a fix.
+
+The section is laid out in two columns with a seventh spot drawing beside the question — a
+magnifying glass over a page with the one line inside the glass drawn brighter than the rest
+(`frontend/public/brand/doodle-magnifier.webp`). It sits beside the question rather than the
+answer, because the answer below it can run to several lines and the art should not be dragged
+down with it.

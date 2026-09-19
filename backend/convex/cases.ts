@@ -62,6 +62,11 @@ export const board = query({
           // How long this has been going on is the whole point of the product,
           // so the board gets the open date, not just the last movement.
           openedAt: c.openedAt ?? c._creationTime,
+          // Their own published deadline, and where it lands on this calendar.
+          // The elapsed comparison is left to the client on purpose: a query
+          // that reads the wall clock does not re-run as time passes.
+          promise: c.promise,
+          deadline: c.deadline,
           tracks: tracks.map((t) => ({
             _id: t._id,
             kind: t.kind,
@@ -290,6 +295,8 @@ export const get = query({
       summary: c.summary,
       openedAt: c.openedAt ?? c._creationTime,
       lastMovedAt: c.lastMovedAt,
+      promise: c.promise,
+      deadline: c.deadline,
       members: members.map((m) => ({ email: m.email, role: m.role })),
       tracks: tracks.map((t) => ({
         _id: t._id,

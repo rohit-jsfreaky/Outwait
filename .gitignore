@@ -49,6 +49,10 @@ out/
 # competition sweep, the phase-by-phase thinking. That stays on this machine.
 *.md
 
+# RANKING.md is the competitive sweep — every other submission, scored. Useful
+# to us, not something to hand the people we are being scored against.
+RANKING.md
+
 # ...except the two files the judges are meant to read.
 # hackathon.md at the repo root is a HARD hackathon requirement — leaving it
 # out is a disqualification, so this line is not optional.
