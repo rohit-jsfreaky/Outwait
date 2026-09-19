@@ -215,9 +215,20 @@ export const open = action({
     if (!h) return { ok: false as const, reason: "That link has expired." };
 
     const scrapeId = await startSession(h.targetUrl, h.profileName, true);
+    // Zoom the remote page before anyone sees it. The live view is a stream of
+    // a fixed-viewport browser, and Firecrawl has no viewport option yet
+    // (mendableai/firecrawl#1242) — so the page itself is enlarged instead.
+    // Somebody is about to type a password into this on a phone; default-size
+    // form fields are genuinely unusable for anyone with imperfect eyesight.
+    // Wrapped so a styling failure can never cost us the handover itself.
     const opened = await act(
       scrapeId,
       `await page.goto(${JSON.stringify(h.targetUrl)}, { waitUntil: 'networkidle' });
+try {
+  await page.addStyleTag({
+    content: 'html{zoom:1.5!important} input,select,textarea,button{font-size:18px!important;min-height:44px!important}',
+  });
+} catch (e) {}
 JSON.stringify({ url: page.url() });`,
       90,
     );

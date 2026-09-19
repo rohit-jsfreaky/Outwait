@@ -3,13 +3,34 @@ import { Authenticated, AuthLoading, Unauthenticated, useQuery } from 'convex/re
 import { useAuthActions } from '@convex-dev/auth/react'
 import { api } from '@backend/_generated/api'
 import type { Id } from '@backend/_generated/dataModel'
-import { ArrowLeft, ArrowRight, Check, ChevronRight, LogOut, Mail } from 'lucide-react'
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  Check,
+  ChevronRight,
+  FileCheck,
+  HelpCircle,
+  KeyRound,
+  LogOut,
+  Mail,
+  Paperclip,
+  type LucideIcon,
+} from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Progress } from '@/components/ui/progress'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -211,66 +232,319 @@ function RailCard({ children }: { children: React.ReactNode }) {
   )
 }
 
+/* --- what needs you ------------------------------------------------------- */
+
+/**
+ * The only panel on the board a person actually acts on, so it is built to be
+ * scanned rather than read.
+ *
+ * It used to print every waiting item in full, one under the other — the
+ * question, the reason, who it sends to, the buttons. Two of those already fill
+ * a rail and nothing looks more urgent than anything else. Now it is three
+ * one-line rows: what it is, and what kind of ten seconds it costs you. The
+ * words and the buttons live in the sheet you open by tapping a row, and
+ * anything past the third sits behind **View all**, which is a filtered list of
+ * the same rows.
+ */
+type Waiting = {
+  _id: string
+  caseId?: string
+  caseTitle?: string
+  kind: string
+  question: string
+  why?: string
+  askedAt: number
+  sendsTo?: string
+  href?: string
+}
+
+/**
+ * Three kinds of ask, because that is the real question a person has before
+ * they tap: do I sign in, do I say yes, or do I have to go and find something
+ * out. The ask kinds in the schema collapse onto those three.
+ */
+type NeedGroup = 'login' | 'approve' | 'answer'
+
+const NEED: Record<string, { group: NeedGroup; verb: string; Icon: LucideIcon }> = {
+  handover: { group: 'login', verb: 'Sign in for me', Icon: KeyRound },
+  login: { group: 'login', verb: 'Sign in for me', Icon: KeyRound },
+  approve: { group: 'approve', verb: 'Say yes before I send it', Icon: FileCheck },
+  file: { group: 'answer', verb: 'Send me a photo', Icon: Paperclip },
+  confirm: { group: 'answer', verb: 'Answer one question', Icon: HelpCircle },
+  fact: { group: 'answer', verb: 'Answer one question', Icon: HelpCircle },
+}
+
+const need = (kind: string) => NEED[kind] ?? NEED.confirm
+
+const GROUPS: Array<{ id: 'all' | NeedGroup; label: string }> = [
+  { id: 'all', label: 'All' },
+  { id: 'login', label: 'Sign in' },
+  { id: 'approve', label: 'Approve' },
+  { id: 'answer', label: 'Answer' },
+]
+
+/** One line, always the same height, whether it is in the rail or the list. */
+function NeedRow({ item, onClick }: { item: Waiting; onClick: () => void }) {
+  const { Icon, verb } = need(item.kind)
+  return (
+    <button
+      onClick={onClick}
+      title={item.question}
+      className="group flex w-full items-center gap-3 rounded-xl border border-amber-500/15 bg-ink/45 px-3 py-2.5 text-left transition-colors hover:border-amber-400/45 hover:bg-ink/70"
+    >
+      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-amber-500/14 text-amber-300">
+        <Icon className="size-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[14.5px] leading-snug font-medium">
+          {item.question}
+        </span>
+        <span className="mt-0.5 block truncate text-[13px] text-dim">
+          {verb} · {item.caseTitle ?? when(item.askedAt)}
+        </span>
+      </span>
+      <ChevronRight className="size-4 shrink-0 text-white/25 transition-transform group-hover:translate-x-0.5 group-hover:text-amber-300" />
+    </button>
+  )
+}
+
 function NeedsYou({
   items,
   onOpenCase,
   compact = false,
 }: {
-  items: Array<Record<string, any>>
+  items: Waiting[]
   onOpenCase?: (id: string) => void
   compact?: boolean
 }) {
+  const [pickedId, setPickedId] = useState<string | null>(null)
+  const [listOpen, setListOpen] = useState(false)
+  // Stepping into a row from the full list should step back out to the list,
+  // not dump you on the board.
+  const [returnToList, setReturnToList] = useState(false)
+
+  // Read the open row out of the live list rather than holding a copy, so when
+  // the handover completes in the other tab this closes itself instead of
+  // sitting there describing something that has already happened.
+  const picked = pickedId ? (items.find((i) => i._id === pickedId) ?? null) : null
+
+  const top = items.slice(0, 3)
+  const more = items.length - top.length
+
+  const dismiss = () => {
+    setPickedId(null)
+    if (returnToList) {
+      setReturnToList(false)
+      setListOpen(true)
+    }
+  }
+  const leave = () => {
+    setPickedId(null)
+    setReturnToList(false)
+    setListOpen(false)
+  }
+
   return (
-    <Card className="gap-0 rounded-2xl border-amber-500/25 bg-amber-500/8 py-0 shadow-none">
-      <CardContent className="p-5">
-        <div className="flex items-start gap-4">
-          {!compact && (
-            <Doodle name="tap" className="mt-0.5 hidden h-12 w-auto shrink-0 xl:block" />
-          )}
-          <div className="min-w-0 flex-1">
+    <>
+      <Card className="gap-0 rounded-2xl border-amber-500/25 bg-amber-500/8 py-0 shadow-none">
+        <CardContent className="p-5">
+          <div className="flex items-center gap-3">
             <p className="text-[13px] font-medium text-amber-300">
               {items.length === 1 ? 'One thing needs you' : `${items.length} things need you`}
             </p>
-            {items.map((a) => (
-              <div key={a._id} className="mt-3 first:mt-2">
-                <p className="text-[16px] leading-snug font-medium">{a.question}</p>
-                {a.why && (
-                  <p className="mt-1 text-[14px] leading-relaxed text-dim">{a.why}</p>
-                )}
-                {a.sendsTo && (
-                  <p className="mt-1.5 text-[14px] text-dim">
-                    It only goes to {a.sendsTo} if you say yes.
-                  </p>
-                )}
-                <div className="mt-3 flex flex-wrap items-center gap-3">
-                  {a.href ? (
-                    <Button asChild className="rounded-full">
-                      <a href={a.href}>
-                        Open it
-                        <ArrowRight />
-                      </a>
-                    </Button>
-                  ) : (
-                    <span className="inline-flex items-center gap-2 text-[14px] text-dim">
-                      <Mail className="size-4" />
-                      Just reply to the email we sent you
-                    </span>
-                  )}
-                  {onOpenCase && a.caseTitle && (
-                    <button
-                      onClick={() => onOpenCase(a.caseId)}
-                      className="text-[14px] text-dim underline-offset-4 hover:text-paper hover:underline"
-                    >
-                      {a.caseTitle}
-                    </button>
-                  )}
-                </div>
-              </div>
+            {!compact && <Doodle name="tap" className="ml-auto h-9 w-auto shrink-0" />}
+          </div>
+
+          <div className="mt-3 space-y-2">
+            {top.map((it) => (
+              <NeedRow
+                key={it._id}
+                item={it}
+                onClick={() => {
+                  setReturnToList(false)
+                  setPickedId(it._id)
+                }}
+              />
             ))}
           </div>
+
+          {more > 0 && (
+            <Button
+              variant="ghost"
+              onClick={() => setListOpen(true)}
+              className="mt-2.5 w-full rounded-full border border-amber-500/20 text-[14px] text-amber-200 hover:bg-amber-500/12 hover:text-amber-100"
+            >
+              View all {items.length}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      {listOpen && (
+        <NeedList
+          items={items}
+          onClose={() => setListOpen(false)}
+          onPick={(it) => {
+            setListOpen(false)
+            setReturnToList(true)
+            setPickedId(it._id)
+          }}
+        />
+      )}
+
+      {picked && (
+        <NeedDialog
+          item={picked}
+          onOpenCase={onOpenCase}
+          backToList={returnToList}
+          onDismiss={dismiss}
+          onLeave={leave}
+        />
+      )}
+    </>
+  )
+}
+
+/** One ask, in full, with the thing you actually have to do at the bottom. */
+function NeedDialog({
+  item,
+  onOpenCase,
+  backToList,
+  onDismiss,
+  onLeave,
+}: {
+  item: Waiting
+  onOpenCase?: (id: string) => void
+  backToList: boolean
+  onDismiss: () => void
+  onLeave: () => void
+}) {
+  const { Icon, verb } = need(item.kind)
+
+  const facts: Array<[string, string]> = []
+  if (item.caseTitle) facts.push(['Claim', item.caseTitle])
+  if (item.sendsTo) facts.push(['It only goes to', item.sendsTo])
+  facts.push(['Waiting since', when(item.askedAt)])
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onDismiss()}>
+      <DialogContent className="dark sm:max-w-lg">
+        <DialogHeader>
+          <span className="inline-flex items-center gap-2 text-[12.5px] font-medium text-amber-300">
+            <Icon className="size-4" />
+            {verb}
+          </span>
+          <DialogTitle className="text-[19px] leading-snug">{item.question}</DialogTitle>
+          {item.why && (
+            <DialogDescription className="text-[14.5px] leading-relaxed">
+              {item.why}
+            </DialogDescription>
+          )}
+        </DialogHeader>
+
+        <dl className="space-y-2.5 rounded-xl border border-hair bg-ink/40 p-4 text-[14px]">
+          {facts.map(([k, v]) => (
+            <div key={k} className="flex items-baseline justify-between gap-4">
+              <dt className="shrink-0 text-dim">{k}</dt>
+              <dd className="min-w-0 truncate text-right font-medium" title={v}>
+                {v}
+              </dd>
+            </div>
+          ))}
+        </dl>
+
+        {item.href ? (
+          <p className="text-[14px] leading-relaxed text-dim">
+            This opens their website in a real browser, already on the right page. You sign in, and
+            we carry on from there — we never see the password.
+          </p>
+        ) : (
+          <div className="flex items-start gap-3 text-[14px] leading-relaxed text-dim">
+            <Mail className="mt-0.5 size-4 shrink-0" />
+            <p>
+              We've emailed this to you. Reply to that email — one line is enough — and we'll pick
+              it up from there.
+            </p>
+          </div>
+        )}
+
+        <DialogFooter>
+          {backToList && (
+            <Button variant="ghost" onClick={onDismiss}>
+              <ArrowLeft />
+              Back to the list
+            </Button>
+          )}
+          {onOpenCase && item.caseId && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                const id = item.caseId!
+                onLeave()
+                onOpenCase(id)
+              }}
+            >
+              Open the claim
+            </Button>
+          )}
+          {item.href && (
+            <Button asChild>
+              <a href={item.href} target="_blank" rel="noopener noreferrer">
+                Open it
+                <ArrowUpRight />
+              </a>
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** Everything waiting, in the same rows, with the three kinds as a filter. */
+function NeedList({
+  items,
+  onPick,
+  onClose,
+}: {
+  items: Waiting[]
+  onPick: (item: Waiting) => void
+  onClose: () => void
+}) {
+  const [group, setGroup] = useState<'all' | NeedGroup>('all')
+
+  const count = (id: 'all' | NeedGroup) =>
+    id === 'all' ? items.length : items.filter((i) => need(i.kind).group === id).length
+  const shown = group === 'all' ? items : items.filter((i) => need(i.kind).group === group)
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="dark sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="text-[19px]">Everything that needs you</DialogTitle>
+          <DialogDescription className="text-[14.5px]">
+            {items.length} things, newest first. Tap one to see what to do.
+          </DialogDescription>
+        </DialogHeader>
+
+        <Tabs value={group} onValueChange={(v) => setGroup(v as 'all' | NeedGroup)}>
+          <TabsList className="w-full">
+            {GROUPS.filter((g) => g.id === 'all' || count(g.id) > 0).map((g) => (
+              <TabsTrigger key={g.id} value={g.id}>
+                {g.label}
+                <span className="text-[12px] opacity-55">{count(g.id)}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
+        <div className="max-h-[52vh] space-y-2 overflow-y-auto">
+          {shown.map((it) => (
+            <NeedRow key={it._id} item={it} onClick={() => onPick(it)} />
+          ))}
         </div>
-      </CardContent>
-    </Card>
+      </DialogContent>
+    </Dialog>
   )
 }
 

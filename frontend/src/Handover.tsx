@@ -23,7 +23,7 @@ import { useSurface } from './surface'
  * be dead by the time someone taps the link.
  */
 export default function Handover({ token }: { token: string }) {
-  useSurface('light')
+  useSurface('dark')
   const handoff = useQuery(api.handoffs.byToken, { token })
   const open = useAction(api.handoffs.open)
   const finish = useAction(api.handoffs.finish)
@@ -80,7 +80,7 @@ export default function Handover({ token }: { token: string }) {
       <Shell>
         <Skeleton className="h-3.5 w-44" />
         <Skeleton className="mt-3 h-9 w-[22rem] max-w-full" />
-        <Card className="surface mt-6 max-w-xl rounded-xl border-0">
+        <Card className="mt-6 max-w-xl rounded-2xl border-hair bg-ink-700">
           <CardContent className="space-y-3">
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-full" />
@@ -107,7 +107,7 @@ export default function Handover({ token }: { token: string }) {
   if (handoff.expired || handoff.state === 'expired') {
     return (
       <Shell>
-        <Card>
+        <Card className="rounded-2xl border-hair bg-ink-700">
           <CardHeader>
             <CardTitle className="font-display text-3xl">This link has expired</CardTitle>
             <CardDescription className="text-base">
@@ -122,7 +122,7 @@ export default function Handover({ token }: { token: string }) {
   if (done || handoff.state === 'done') {
     return (
       <Shell>
-        <Card>
+        <Card className="rounded-2xl border-hair bg-ink-700">
           <CardHeader>
             <CheckCircle2 className="mb-2 size-8 text-mint" />
             <CardTitle className="font-display text-3xl">Done. Thank you.</CardTitle>
@@ -131,8 +131,11 @@ export default function Handover({ token }: { token: string }) {
               ask you again.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground text-sm">You can close this tab.</p>
+          <CardContent className="flex flex-wrap items-center gap-3">
+            <Button asChild size="lg" className="rounded-full">
+              <a href="/board">Back to your claims</a>
+            </Button>
+            <p className="text-[14px] text-dim">or just close this tab.</p>
           </CardContent>
         </Card>
       </Shell>
@@ -141,20 +144,20 @@ export default function Handover({ token }: { token: string }) {
 
   return (
     <Shell wide={!!url}>
-      <p className="text-muted-foreground text-xs tracking-wide uppercase">
+      <p className="text-[13px] text-dim">
         {handoff.caseTitle}
       </p>
       <h1 className="font-display mt-1 text-4xl tracking-tight">{handoff.reason}</h1>
 
       {!url && (
-        <Card className="surface mt-6 max-w-xl rounded-xl border-0">
+        <Card className="mt-6 max-w-xl rounded-2xl border-hair bg-ink-700">
           <CardContent className="space-y-3">
             <p className="leading-relaxed">
               I have filled in everything I can. The only part left is the password, and I am not
               asking you for it — you type it straight into the browser below and I carry on from
               there.
             </p>
-            <p className="text-muted-foreground text-sm leading-relaxed">
+            <p className="text-[15px] leading-relaxed text-dim">
               The browser starts when you press this, so nothing has been sitting open waiting
               for you.
             </p>
@@ -175,9 +178,9 @@ export default function Handover({ token }: { token: string }) {
       {url && (
         <>
           <div className="mt-4 flex flex-wrap items-center gap-4">
-            <p className="text-muted-foreground text-sm">
-              Type the password in the frame. Nobody else can see it — it renders as dots on
-              every other screen.
+            <p className="text-[15px] text-dim">
+              Type your password straight into the window below. Nobody else can see it — on
+              every other screen it renders as dots.
             </p>
             <WhoIsDriving roomId={`handover:${token}`} me={me} />
             {left !== null && (
@@ -191,7 +194,7 @@ export default function Handover({ token }: { token: string }) {
           <iframe
             src={url}
             title="handover"
-            className="surface mt-4 h-[620px] w-full rounded-xl bg-white"
+            className="mt-4 h-[76vh] min-h-[560px] w-full rounded-xl border border-hair bg-white"
           />
 
           <div className="mt-4 flex flex-wrap items-center gap-4">
@@ -214,10 +217,10 @@ export default function Handover({ token }: { token: string }) {
 
 function Shell({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
   return (
-    <main className="min-h-dvh">
-      <div className={`mx-auto px-6 py-10 ${wide ? 'max-w-6xl' : 'max-w-2xl'}`}>
+    <main className="dark min-h-dvh bg-ink text-paper">
+      <div className={`mx-auto px-6 py-8 ${wide ? 'max-w-[1500px]' : 'max-w-2xl'}`}>
         <div className="mb-8 flex items-center gap-2.5">
-          <img src="/brand/mark-dark.webp" alt="" className="size-7" />
+          <img src="/brand/mark-light.webp" alt="" className="size-7" />
           <span className="font-semibold tracking-tight">Outwait</span>
         </div>
         {children}

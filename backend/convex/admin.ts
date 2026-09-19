@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "./_generated/server";
+import { askKind } from "./schema";
 import type { Id } from "./_generated/dataModel";
 
 /**
@@ -266,5 +267,50 @@ export const unseedDemo = internalMutation({
       removed++;
     }
     return { removed };
+  },
+});
+
+/**
+ * Put ask rows on a case and take them off again.
+ *
+ * "What needs you" shows three rows and hides the rest behind View all, so the
+ * list, its filter and the overflow only exist once there are more than three —
+ * a branch you cannot see on a board that has two. These write nothing but the
+ * `asks` rows themselves: no event, no case status, no email, no reminders. So
+ * the board is exactly as it was once `dropAsks` has run with the ids.
+ */
+export const seedAsks = internalMutation({
+  args: {
+    caseId: v.id("cases"),
+    rows: v.array(
+      v.object({ kind: askKind, question: v.string(), why: v.optional(v.string()) }),
+    ),
+  },
+  handler: async (ctx, { caseId, rows }) => {
+    const now = Date.now();
+    const ids: Array<Id<"asks">> = [];
+    for (const [i, r] of rows.entries()) {
+      ids.push(
+        await ctx.db.insert("asks", {
+          caseId,
+          kind: r.kind,
+          question: r.question,
+          why: r.why,
+          state: "open",
+          // Spread them out so the list has a real order to sort by.
+          askedAt: now - (i + 1) * 3600_000,
+          remindersSent: 0,
+        }),
+      );
+    }
+    return { ids };
+  },
+});
+
+export const dropAsks = internalMutation({
+  args: { ids: v.array(v.id("asks")) },
+  handler: async (ctx, { ids }) => {
+    for (const id of ids) await ctx.db.delete("asks", id);
+    return { dropped: ids.length };
   },
 });

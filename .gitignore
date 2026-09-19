@@ -112,3 +112,17 @@ desktop.ini
 
 # Local MCP config — machine-specific absolute paths, not useful to anyone else
 .mcp.json
+
+
+# ── Video and social scratch at the repo root ────────────────────────────────
+# Frames, crops and exports made while cutting the demo video land here as
+# throwaways. Anchored with a leading slash on purpose: this ignores loose
+# images at the REPO ROOT only, and never touches frontend/public/brand/ or
+# docs/screens/, which are real assets the README and the app both point at.
+/*.png
+/*.jpg
+/*.jpeg
+/*.gif
+/*.mp4
+/*.mov
+/*.webm

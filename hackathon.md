@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth
 - **AI models:** openai/gpt-5.6-luna (via OpenRouter)
 - **Started:** 2026-09-12T09:10:36Z
-- **Last updated:** 2026-09-15T10:33:15Z
+- **Last updated:** 2026-09-19T11:02:03Z
 
 ## Log
 
@@ -209,3 +209,45 @@ browser, so a near-black page under a light color-scheme gets a white scrollbar 
 The email spine was re-verified end to end after the earlier routing change, with a real forwarded
 message: signed webhook, model extraction, and a new case with the company, amount and reference
 pulled out of the mail on its own.
+
+### 2026-09-19 - working tree
+
+"What needs you" was the one panel on the board a person actually acts on, and it was the worst
+thing on the screen. It printed every waiting item in full — question, reason, who it sends to,
+buttons — one under the other. Two of those fill a rail, and nothing looks more urgent than
+anything else when everything is the same size.
+
+It is now three one-line rows, each the same height, saying what the item is and what kind of ten
+seconds it costs you: sign in, say yes, or go and find something out. The six ask kinds in the
+schema collapse onto those three, because that is the real question a person has before they tap.
+The words and the buttons moved into a dialog you open by tapping a row; anything past the third
+sits behind **View all**, a filtered list of the same rows (`frontend/src/App.tsx`).
+
+Two details that only matter because this is live data. The open row is read out of the live list
+by id rather than held as a copy, so when a handover is completed in another tab the dialog closes
+itself instead of sitting there describing something that has already happened. And stepping into a
+row from the full list steps back out to the list, not to the board.
+
+That overflow branch could not be seen on a board with two waiting items, so `convex/admin.ts`
+gained `seedAsks` / `dropAsks` — internal-only mutations that write nothing but `asks` rows: no
+event, no case status, no email, no reminders. The board is exactly as it was once `dropAsks` has
+run with the ids.
+
+The handover page (boundary 3) is dark now and goes full width the moment the browser opens —
+`max-w-[1500px]`, a `76vh` frame — because the live view is the page at that point, not an
+illustration on it. Done no longer ends at "you can close this tab"; there is a way back to the
+claims (`frontend/src/Handover.tsx`).
+
+Underneath it, the remote page is zoomed to 150% with larger form controls before anyone sees it.
+The live view streams a fixed-viewport browser and Firecrawl has no viewport option yet
+(mendableai/firecrawl#1242), so the page itself is enlarged instead. Somebody is about to type a
+password into this on a phone, and default-size fields are genuinely unusable for anyone with
+imperfect eyesight. The style injection is wrapped so that failing to apply it can never cost the
+handover (`convex/handoffs.ts`).
+
+The README was rewritten around researched numbers rather than claims. England and Wales hold
+4,706,470 protected tenancy deposits worth £5.53bn, and in 2024/25 the schemes adjudicated 46,950
+of them — 1.00%. The disputes that do happen are ordinary ones (cleaning 54%, damage 49%,
+redecoration 31%), which is the point: the other 99% are not clean returns, they are people who
+stopped. Every figure is sourced to the TDS Statistical Briefing 2025 and attributed inline.
+Screenshots are taken from the live deployment, not mocked (`docs/screens/`).

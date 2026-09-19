@@ -1,119 +1,310 @@
+<div align="center">
+
+<img src="frontend/public/brand/mark-dark.webp" alt="Outwait" width="76" />
+
 # Outwait
 
 **They wait you out. Outwait waits longer.**
 
-You are owed money. A deposit, a refund, a delayed-flight payout, a wrongly charged bill. The
-company never says no. They just make it slow — a form, then an email, then "please call us", then
-two weeks of silence, then a reply asking for something you have to go and find.
+An agent that chases a company for money they owe you — for weeks, on its own —
+and taps you only for the ten seconds that genuinely need a human.
 
-Every one of those switches is a place where a normal person quits. Not because it is hard, because
-it is long.
+[**Live app**](https://tangible-finch-783.convex.site) ·
+[Build log](hackathon.md) ·
+[The three boundaries](#the-three-boundaries) ·
+[How it works](#how-it-works) ·
+[Running it](#running-it)
 
-A machine does not get bored. That is the whole product, and it is where the name comes from: you
-do not outsmart them, you outwait them.
+</div>
 
-Built for the [Convex All Gas Hackathon](https://vibeapps.dev/tag/allgashackathon).
+---
 
-**Live app:** https://tangible-finch-783.convex.site
-**Build log:** [hackathon.md](./hackathon.md)
+## The problem, in numbers
 
-> **Status: working.** All three boundaries below are live on the production deployment and have
-> been driven end to end, not mocked: the agent has registered itself on a site and read its own
-> verification code; a letter has been held as a draft until a human replied "yes"; and a person has
-> typed a password into a live browser the agent then carried on using. Sign-in, the multi-week
-> chase workflow, and multi-user presence are live too. The build log has the honest, dated version,
-> including the things that broke.
+Nobody refuses you. They just make getting your money back take longer than you are willing
+to spend on it.
 
-## The rule the product is built on
+In England and Wales alone, **4,706,470 tenancy deposits** are held in protection schemes,
+worth a record **£5.53 billion**. The average deposit is **£1,175** — real money to the person
+who paid it.
 
-The person who abandons a deposit claim will never open a website again. But they will reply to an
-email from their phone in twenty seconds.
+In 2024/25 those schemes carried out **46,950 adjudications. That is 1.00% of protected
+deposits.**
 
-**So the agent never asks you to come back to the app. It emails you.** A case starts by forwarding
-an email, not by filling a form — one forward gives the agent the company's real reply-to address,
-the reference number, the names, the dates and the whole history, for zero effort.
+> Ninety-nine percent of deposits never reach a dispute.
 
-The app is where you go to look. Email is how the app comes to you.
+That is not because ninety-nine percent of landlords return the money cleanly. The same
+briefing lists what disputes are actually about — **cleaning (54%)**, **damage (49%)**,
+**redecoration (31%)** — the ordinary end-of-tenancy arguments that happen everywhere, not
+rare misconduct. And when a case *is* adjudicated, the landlord is rarely handed the lot:
+industry analysis of the TDS annual report puts a 100% award to the landlord at around **5%**
+of insured cases, with most ending in a split.
 
-## Three boundaries
+So the money is not usually lost because the tenant was wrong. It is lost because pursuing it
+is a part-time job, and a normal person quits somewhere around the third email.
 
-The product is really about one question: where does the human stand when the agent does the work?
+<sub>Sources: [TDS Statistical Briefing 2025](https://www.tenancydepositscheme.com/article/TDS-Statistical-Briefing-2025-Key-trends-in-deposits-disputes-and-the-UK-rental-market)
+(deposit counts, value, adjudication rate, dispute reasons — figures for England and Wales,
+year to March 2025). Award-split figure reported from the TDS annual report by
+[The Accommodation Bureau](https://theaccommodationbureau.com). Deposits are the clearest
+public dataset; the same shape applies to refunds, delayed payouts and wrongly charged bills,
+where no scheme keeps score at all.</sub>
 
-1. **The agent acts as itself.** When a step needs an account that is not yours — a complaints
-   portal, an ombudsman, a claims registry — it registers itself with its own email address and
-   reads its own verification code out of its own inbox. You are never involved.
-2. **The agent asks before it commits.** Anything binding — a formal complaint, accepting an offer,
-   anything naming a number — is held as a draft until a person approves it. Nothing binding is
-   ever sent on a model's own judgement.
-3. **The agent hands over the wheel.** When a step needs an account that *is* yours, it does not ask
-   for your password. It sends a one-tap link, and the live browser opens on your phone for the ten
-   seconds only you can do. Then it carries on.
+### Why people quit
 
-## A case is many tracks, not one line
+A claim is not one hard task. It is a long chain of small ones, and every link is a place to
+give up:
 
-One track gets blocked waiting on a human. The others keep moving. While blocked, the agent fills in
-the whole form so the person's part is only the password, and it looks for a route around the block
-entirely — email first, its own account second, and asking you only last.
-
-## Signing in
-
-There is no password anywhere in this product, including its own front door. You give an address, a
-six-digit code arrives from the agent's own inbox, and you type it back. Signing in the same way the
-product already reaches you is the honest version of the rule above — and it means every address on
-the board is one somebody proved they can read.
-
-The board is the only screen that needs a session. The landing page is open, and so is the handover
-page: somebody has just tapped a one-tap link on their phone, and the token in that URL *is* the
-credential. Making them sign in first would break the one thing the product promises.
-
-## Stack
-
-| | |
+| The step they add | What it costs you |
 |---|---|
-| **Convex** | the backend — database, queries, mutations, actions, HTTP actions, scheduling, workflows, presence, auth, and the static hosting that serves this app |
-| **Firecrawl** | reads the web, and operates it — `/interact` drives a real browser and hands it to a human for logins |
-| **AgentMail** | the agent's own inbox and identity, threads as case files, drafts as the approval gate, and the inbound webhook that makes the board move live |
-| **OpenAI** | reads a forwarded letter, classifies replies, decides the next action, drafts the emails |
+| Fill in the online form | Ten minutes, and a reference number |
+| Wait ten working days | Two weeks of remembering to check |
+| Send the same document again | The suspicion that nobody read the first one |
+| "Please call us between 10 and 4" | A working day you do not have |
+| Escalate in writing to another team | Starting over, with a new person |
 
-## Layout
+None of it is difficult. All of it is long. **You do not have to outsmart them. You have to
+outlast them** — and a machine does not get bored.
 
-Three separate npm projects in one repo. No workspaces — each folder installs on its own.
+---
+
+## What it does
+
+You forward one email. That is the entire setup — no form, no account required to start.
+
+The forward hands over everything a claim needs and a form would have made you retype: the
+company's real reply-to address, the reference number, the dates, the amounts and the history.
+From there it opens a case, researches the company's own published policy, writes to them,
+waits a week, writes again, registers on whatever portal is required, and escalates — for as
+long as it takes.
+
+<div align="center">
+<img src="docs/screens/landing.webp" alt="Outwait landing page" width="820" />
+</div>
+
+### Your claims, and what needs you
+
+The board answers two questions and refuses to ask you anything else: **is anything
+happening, and does it need me?**
+
+<div align="center">
+<img src="docs/screens/board.webp" alt="The claims board" width="820" />
+</div>
+
+Open one and you get the whole story as a timeline in plain English — no status codes, no
+jargon, no log to decode.
+
+<div align="center">
+<img src="docs/screens/claim.webp" alt="A single claim" width="820" />
+</div>
+
+---
+
+## The three boundaries
+
+Every agent has a human. The only real question is *where that human stands* — and this
+product answers it three times. Each answer is a line in the code, not a promise in a prompt.
+
+### 1. It acts as itself
+
+A complaints portal wants an account. The agent registers **in its own name, with its own
+email address**, then reads its own verification code out of its own inbox and carries on.
+
+It never holds a credential of yours, because it never needs one.
+
+### 2. It asks before it commits
+
+Anything binding — a formal complaint, a number, a settlement — is written and then **held**
+as a draft. It goes out when a person replies "yes" to an email, and there is **no code path
+that sends it without one**. The guard is structural, not an instruction the model is asked to
+respect.
+
+### 3. It hands you the wheel
+
+When a step needs *your* login, it does not ask for your password.
+
+It sends one link. You tap it on your phone, a **real browser opens inside the page**, you
+type your password into the site itself, and the agent carries on in that same session. The
+session is created the moment you tap — not when the email was sent — because a browser left
+open waiting for you would be dead by the time you arrived.
+
+<div align="center">
+<img src="docs/screens/handover.webp" alt="The live browser handover" width="820" />
+</div>
+
+That is a live browser, in the page, with the clock running. Your password is typed into the
+real site; on every other screen watching that session it renders as dots. Afterwards the
+login is saved against that company, so it never has to ask you twice.
+
+**Ten seconds of your attention, once per company, forever.**
+
+---
+
+## How it works
 
 ```
-backend/      the Convex app. This is the backend.
-frontend/     Vite + React. Builds to frontend/dist, which backend/ uploads to convex.site.
-component/    a publishable Convex component for Firecrawl /interact. Built last.
+  forward an email
+         │
+         ▼
+   signed webhook ──► verify ──► store ──► 204        (answer fast, think after)
+         │
+         ▼
+   read the letter ──► open a case + its tracks       (one file calls a model)
+         │
+         ├──► research the company's own policy       Firecrawl
+         ├──► write to them, wait a week, write again  durable workflow
+         ├──► register on a portal as itself           Firecrawl + own inbox
+         └──► when it truly needs you ──► one email    AgentMail
+                                              │
+                                              ▼
+                              reply "yes" · send a photo · tap a link
 ```
+
+Everything the demo depends on is deterministic. **One file calls a model**
+(`convex/agent/model.ts`, two named jobs) and it only ever turns prose into structured fields.
+The case shape, which tracks open, what the board says and what gets sent are all plain
+mutations — so the same email always produces the same case.
+
+---
+
+## Built on
+
+### Convex — the backend, and most of the product
+
+Not a database with a server bolted on. The parts of this that would normally be
+infrastructure are Convex features, which is why a solo build could reach this scope.
+
+| What | Where |
+|---|---|
+| **Durable workflows** — `step.sleep` for 7 days, three times, then escalation. A chase that survives restarts and costs nothing while it waits. | `convex/workflows/chase.ts` · `@convex-dev/workflow` |
+| **Realtime queries** — one subscription drives the whole board. Mail lands, the screen moves. Nobody refreshes. | `convex/cases.ts` |
+| **HTTP actions** — the inbound mail webhook, with hand-written Svix signature verification (Web Crypto, because HTTP actions are not Node). | `convex/http.ts` · `convex/lib/svix.ts` |
+| **Scheduled functions** — answer the webhook in 204, then think. A slow webhook gets retried, and a retry would open the case twice. | `convex/http.ts` |
+| **Auth** — sign in with a six-digit code, no password anywhere. | `convex/auth.ts` · `@convex-dev/auth` |
+| **Presence** — three flatmates, one deposit: see who else is on a case and who is holding the wheel. | `convex/presence.ts` · `@convex-dev/presence` |
+| **File storage** — reply to an email with a photo of a receipt and it becomes evidence on the case. | `convex/mail/client.ts` |
+| **Static hosting** — the whole frontend served from the same deployment. | `@convex-dev/static-hosting` |
+
+Three registered components, plus auth. `convex/lib/status.ts` derives case status from the
+rows themselves rather than letting each blocker assign it — which removed a whole class of
+bug where clearing one blocker wrongly cleared the case.
+
+### Firecrawl — reading the web, and operating it
+
+Two different jobs, and the second one is the interesting one.
+
+- **Reading.** `/v2/scrape` pulls the company's own published policy so a letter can quote it
+  back at them. Guarded: researched text is only attached when the page hostname matches the
+  company on the case, after an unrelated business's refund policy was once stored as if it
+  were theirs.
+- **Operating.** `/interact` drives a real browser to fill in portals — and
+  `interactiveLiveViewUrl` is what makes boundary 3 possible: the same live session handed to
+  a human, mid-flight, then handed back. Named profiles persist the login so it is asked for
+  once per company.
+
+A finding worth passing on: **the profile write is asynchronous.** Reading a profile back too
+soon returns an empty one — 0 of 3 sessions reused the login with no wait, 3 of 3 with a
+settle. That only showed up by measuring it.
+
+### AgentMail — the agent's own identity
+
+The product reaches people by email, so email is not a notification channel here. It is the
+interface.
+
+- **Its own inbox and address** — which is what lets the agent sign up for things as itself,
+  and read its own verification codes.
+- **Inbound webhook, Svix-signed** — a forwarded email becomes a case. Unsigned and forged
+  deliveries are rejected.
+- **Threads as case files** — a reply lands back on the right case with no reference number
+  to quote.
+- **Drafts as the approval gate** — boundary 2 is an AgentMail draft that is held until a
+  human says yes.
+- **Sign-in codes** — the same inbox that chases companies also sends your login code.
+
+Verification codes are pulled out of mail by anchored regex rather than a model, checked
+against a fixture set of real and decoy messages, because sign-in should not depend on a
+model's mood.
+
+### OpenAI — reading prose, and nothing else
+
+`openai/gpt-5.6-luna` via OpenRouter, in exactly one file, doing two named jobs: turn a
+forwarded email into structured case fields, and classify a reply as yes / no / neither.
+
+Everything downstream is deterministic on purpose. A demo that depends on a model agreeing
+with you is a demo that fails live.
+
+---
 
 ## Running it
+
+Three independent npm projects, no workspaces.
+
+```
+backend/     the Convex app — schema, functions, the agent loop, workflows
+frontend/    Vite + React + shadcn/ui, builds to frontend/dist
+component/   reserved for a publishable Firecrawl /interact component
+```
 
 ```bash
 # backend
 cd backend
 npm install
-cp .env.example .env.local     # then fill it in
+cp .env.example .env.local        # then fill it in
 npx convex dev
 
-# frontend, in a second terminal
+# frontend, second terminal
 cd frontend
 npm install
 npm run dev
 ```
 
-Deploy the whole thing — backend and static site together — from `backend/`:
+Deploy backend and static site together, from `backend/`:
 
 ```bash
 npm run deploy
 ```
 
-## Honest limits
+Credentials live only as Convex environment variables, never in the repo:
+`FIRECRAWL_API_KEY`, `AGENTMAIL_API_KEY`, `AGENTMAIL_WEBHOOK_SECRET`, `OPENROUTER_API_KEY`,
+`MODEL_ID`. Names are in `backend/.env.example`.
 
-- It works best where companies have bad self-service. Amazon already works; this is not for Amazon.
-- A saved login persists only as long as the site itself allows. A bank may be minutes. A small
-  portal may be months.
-- The browser runs from a datacenter IP, so sites with aggressive bot detection will challenge it.
-  Sites with bad self-service tend to have weak detection, and those are the sites this is for.
-- It cannot make a phone call. When a company demands one, it escalates in writing instead. That is
-  usually better, but it is a workaround, not a solution.
-- **This is not legal advice and it never claims to be.** The claim is only that it chases, and that
-  it does not get bored.
+---
+
+## Where it goes next
+
+Honest about today, and each of these is the natural next build rather than a hole.
+
+**Phone calls.** When a company insists on a call, it puts the same thing in writing instead —
+usually the stronger move, since writing leaves a record. A voice agent that sits on hold and
+reads out the reference number is the obvious extension, and hold time is exactly the kind of
+cost a machine should absorb.
+
+**A visible schedule.** The chase already runs on a durable workflow that sleeps for weeks.
+Surfacing that as a dated plan — *"I write again on the 26th; if nothing by the 3rd, I file
+with the ombudsman"* — turns waiting from an absence into something you can see coming.
+
+**Their own deadline, counted back.** The research step already finds the company's published
+turnaround. Holding it up against the calendar — *"their policy says 30 days; that was 47 days
+ago"* — makes the case for escalation before anyone has to argue it.
+
+**Sessions that outlive the site's own.** A saved login lasts only as long as the company's
+session does — minutes at a bank, months at a small portal. Re-authenticating without asking
+again, where the site permits it, is the difference between ten seconds once and ten seconds
+occasionally.
+
+**Companies with good self-service.** Amazon already refunds you in two clicks and needs none
+of this. The product is aimed squarely at the ones that do not, and the addressable gap is
+every company that made a process long on purpose.
+
+**This is not legal advice** and never claims to be. The claim is narrower and, we think,
+more useful: it chases, it keeps a record, and it does not get bored.
+
+---
+
+<div align="center">
+
+Built for the [Convex All Gas Hackathon](https://vibeapps.dev/tag/allgashackathon).
+
+Convex · OpenAI · Firecrawl · AgentMail
+
+</div>
