@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth
 - **AI models:** openai/gpt-5.6-luna (via OpenRouter)
 - **Started:** 2026-09-12T09:10:36Z
-- **Last updated:** 2026-09-19T14:05:00Z
+- **Last updated:** 2026-09-19T14:45:00Z
 
 ## Log
 
@@ -293,3 +293,49 @@ magnifying glass over a page with the one line inside the glass drawn brighter t
 (`frontend/public/brand/doodle-magnifier.webp`). It sits beside the question rather than the
 answer, because the answer below it can run to several lines and the art should not be dragged
 down with it.
+
+### 2026-09-19 - working tree (3)
+
+The reader turned into research.
+
+Every lookup was already being cached by hostname, so the table had quietly become a dataset. It
+is now public: `policy.ledger` is a reactive query behind a block on the landing page listing every
+company anyone has asked it to read, what it found, and a link to the page it read it from. A
+lookup run on the same screen joins the list without a refresh.
+
+Pointed at 27 well-known companies, the finding is the thesis with a number on it: **15 of 27
+publish no refund deadline at all.** Sky, Vodafone, Currys, HSBC, Nationwide, Uber, Deliveroo,
+British Airways and easyJet give you nothing to hold them to. Of the twelve that do, the middle
+promise is 14 days, from Next's one working day to Airbnb's fifteen. A company that never names a
+date can never be late.
+
+Getting there meant six more rounds of the extractor being wrong on real pages, each one found by
+running it rather than reading it, and each one a fixture before it was a fix (41 cases now):
+
+- IKEA's "you can return new and unopened products **within 365 days**" — the reader's window,
+  offered rather than obliged, so `ON_YOU` never saw it. A year, onto a claim.
+- easyJet's "a refund or flight voucher ... **to be used within six months**" — a voucher's shelf
+  life. Guarded by the verb sitting in front of the duration, plus a flat rule that a voucher is
+  not your money back.
+- H&M's "within 30 days **of the purchase date**" — a return window that slipped the backward
+  guard on the word "the".
+- Apple's "**Mobile phone billing** — up to 60 days for the statement to show the refund" — the
+  carrier's clock.
+- Airbnb's "**Card approval** cancellation within 3-5 business days" — an authorisation hold
+  releasing, which is the card network.
+- Sky's "**@Carla1984** Automatic refunds can take 6 weeks" — a community forum post, on Sky's own
+  domain, ranking well. Anything a stranger can post is not a commitment, so community and forum
+  URLs are now excluded at the source, and candidate pages are ranked so the one whose address
+  says "refunds" is read first — which also stops the answer drifting day to day as search
+  rankings move.
+
+Two structural repairs came out of it. `policy.store` listed every field instead of spreading
+`args`, because a re-read that finds nothing must *clear* the old answer and `{...args}` drops
+absent keys — the ledger had been republishing numbers the page no longer supported. And
+`policy.ledger` now returns only rows written by the current extractor version, so improving the
+rules retires the old readings instead of leaving them on a public page.
+
+`policy.sweep` is an internal action that refreshes the ledger without the cache or the public
+rate limit. That limit exists for good reason, but applied to an admin re-read of thirty companies
+it turns into thirty refusals that look exactly like "they publish nothing" — which is how the
+first pass produced a table nobody should have trusted.

@@ -29,13 +29,20 @@ const ON_YOU =
   /\byou(?:r)?\b[^.]{0,40}?\b(?:must|needs?|should|have\s+to|has\s+to|are\s+required|is\s+required|responsib\w+)\b/i;
 const SELF = /\b(we|we'?ll|our|us)\b/i;
 const THIRD_PARTY =
-  /\b(?:your|the)\s+(?:bank|banks|card\s+issuer|issuer|card\s+provider|payment\s+provider|building\s+society|credit\s+card\s+company)\b/i;
+  /\b(?:(?:your|the)\s+(?:bank|banks|card\s+issuer|issuer|card\s+provider|payment\s+provider|building\s+society|credit\s+card\s+company)|(?:mobile\s+phone|carrier|operator)\s+billing|card\s+approval|pre-?authoris\w*|authoris(?:ation|ed)\s+hold)\b/i;
 const BACKWARD = new RegExp(
   DURATION.source +
-    String.raw`\s*(?:prior\s+to|before|ahead\s+of|in\s+advance\s+of|preceding|from\s+the\s+date\s+of\s+purchase|of\s+(?:purchase|delivery|receipt|booking|travel|departure|dispatch))`,
+    String.raw`\s*(?:prior\s+to|before|ahead\s+of|in\s+advance\s+of|preceding|from\s+the\s+date\s+of\s+purchase|of\s+(?:the\s+|your\s+)?(?:purchase|delivery|receipt|booking|travel|departure|dispatch|order|invoice)|of\s+(?:the\s+)?\w+s?\s+being\s+(?:delivered|received|dispatched|sent))`,
   "i",
 );
-const YOU_ACT = /\byou\s+(?:may|can|could|might|will\s+need\s+to)\s+(?:apply|request|claim|submit|ask|contact)\b/i;
+const YOU_ACT =
+  /\byou\s+(?:(?:may|can|could|might|will\s+need\s+to)\s+(?:apply|request|claim|submit|ask|contact|return|exchange|send\s+back|bring\s+back)|(?:return|cancel|send\s+back|bring\s+back)\b)/i;
+const VALIDITY = new RegExp(
+  String.raw`\b(?:to\s+be\s+used|to\s+use|be\s+used|used|valid|validity|redeem(?:ed|able)?|expires?|expiring|claimed)\s+` +
+    DURATION.source,
+  "i",
+);
+const VOUCHER = /\b(voucher|credit\s+note|store\s+credit|travel\s+credit|gift\s+certificate)\b/i;
 const PAYMENT_BRAND =
   /\b(paypal|klarna|clearpay|afterpay|laybuy|zip\s+pay|apple\s+pay|google\s+pay|amazon\s+pay|stripe|visa|mastercard|maestro|amex|american\s+express|gift\s+card|gift\s+voucher)\b/i;
 const DELIVERY = /\b(deliver\w*|dispatch\w*|ship(?:s|ped|ping)?|postage|arrive[sd]?|courier)\b/i;
@@ -60,7 +67,8 @@ function segments(markdown) {
       .replace(/[#*_>`]+/g, " ")
       .replace(/[ \t]+/g, " ")
       .trim()
-      .replace(/^(?:[-–—•]|\d{1,2}[.)])\s+/, "")
+      .replace(/^[^A-Za-z0-9"'(]+/, "")
+      .replace(/^(?:\d{1,2}[.)])\s+/, "")
       .trim();
     if (!flat) continue;
     for (const piece of flat.split(/(?<=[.!?;])\s+/)) {
@@ -77,7 +85,7 @@ function readDuration(sentence) {
   const lo = toNumber(m[1]);
   const hi = m[2] ? toNumber(m[2]) : null;
   const days = Math.max(lo ?? 0, hi ?? 0);
-  if (!days || days > 365) return null;
+  if (!days || days > 120) return null;
   const raw = m[3].toLowerCase();
   const unit = /week/.test(raw)
     ? "week"
@@ -94,7 +102,8 @@ function extractPromise(markdown) {
   for (const s of segments(markdown.slice(0, 80000))) {
     if (!CONTEXT.test(s)) continue;
     if (ON_YOU.test(s) || YOU_ACT.test(s)) continue;
-    if (BACKWARD.test(s)) continue;
+    if (BACKWARD.test(s) || VALIDITY.test(s)) continue;
+    if (VOUCHER.test(s)) continue;
     if (THIRD_PARTY.test(s) || PAYMENT_BRAND.test(s)) continue;
     if (DELIVERY.test(s) && !MONEY.test(s)) continue;
     const d = readDuration(s);
@@ -212,6 +221,22 @@ const shouldNot = [
   // A payment provider's window, also straight off a live Argos page.
   "PayPal refunds can take up to 30 days, while Klarna refunds can take up to 14 days.",
   "Refunds to a gift card are credited within 3 working days.",
+  // The customer's own return window, offered not obliged. IKEA publishes this.
+  "If you are not totally satisfied with your IKEA purchase you can return new and unopened products within 365 days, together with your proof of purchase, for a full refund.",
+  "You can exchange or return any item within 28 days for a refund.",
+  // A guarantee period is not a turnaround.
+  "All repairs carry a refund-backed guarantee for 24 months.",
+  // A voucher shelf life, not a refund turnaround. easyJet publishes this.
+  "Our team will review your case and if your circumstances qualify we may, in our discretion, offer you a refund or flight voucher towards the value of a subsequent flight, to be used within six months;",
+  "Any credit note must be redeemed within 90 days of issue.",
+  // A return window wearing a refund sentence. H&M publishes this one.
+  "We offer a refund or exchange with a receipt, within 30 days of the purchase date, using the original payment method.",
+  // The carrier's statement, not the seller. Apple publishes this one.
+  "Mobile phone billing —It might take up to 60 days for the statement to show the refund.",
+  // An authorisation hold releasing is the card network, not the seller.
+  "Credit card: Card approval cancellation within 3-5 business days",
+  // ASOS: a return window with no modal verb in front of it.
+  "If you return an item within 28 days of the item being delivered to you we will refund it.",
   // Nothing at all.
   "",
   "Cookies help us improve this website.",

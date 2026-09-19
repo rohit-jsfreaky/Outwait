@@ -122,6 +122,32 @@ none of them is a promise the company made. Each one is a fixture
 On a real claim that number lands on the case with the date it runs out, and that sentence is what
 gets quoted back at them.
 
+### What we found when we pointed it at 27 companies
+
+The page keeps a public ledger of everything it has been asked to read. It is the product's own
+research, not a dataset we loaded: every row is a live page, read by the same code, linked so the
+reading can be checked. It is a live Convex query, so a company you look up joins the list in front
+of you without a refresh.
+
+<div align="center">
+<img src="docs/screens/ledger.webp" alt="The public policy ledger" width="820" />
+</div>
+
+**15 of 27 give you no number to hold them to.** Not a slow number — no number. Sky, Vodafone,
+Currys, HSBC, Nationwide, Uber, Deliveroo, British Airways and easyJet publish nothing we could
+find on their own refund pages. Of the twelve that do, the middle promise is **14 days**, and the
+range runs from Next's **one working day** to Airbnb's **fifteen**.
+
+That is the thesis with a number on it. A company that never names a date can never be late, and
+"we are still processing it" is not a broken promise if no promise was made. The twelve that *do*
+publish one have handed you the only sentence that ends the argument — which is why the product
+goes and finds it.
+
+<sub>Method: their own site only, the pages a search for their refund policy actually returns —
+the same place a customer would look. "Nothing published" means nothing found there, not that no
+such page exists anywhere. Community and forum URLs are excluded, because a post by another
+customer is not a commitment.</sub>
+
 ---
 
 ## The three boundaries

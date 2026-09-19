@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { useAction } from 'convex/react'
+import { useAction, useQuery } from 'convex/react'
 import { api } from '@backend/_generated/api'
 import { ArrowRight, ArrowUpRight } from 'lucide-react'
 
@@ -450,8 +450,91 @@ function CheckItYourself() {
             </div>
           </div>
         </div>
+
+        {/* The ledger is a table, not an argument, so it takes the whole
+            measure rather than sitting in the column the prose reads in. */}
+        <div className="lg:col-span-12">
+          <PolicyLedger />
+        </div>
       </Container>
     </Section>
+  )
+}
+
+/**
+ * Everything this has been asked to read, and the finding underneath it.
+ *
+ * It is a live Convex query, so a lookup run above appears here a moment later
+ * without a refresh — including yours. Nothing is loaded from a file: every
+ * row is a page that was actually fetched, and every row that found something
+ * links to where it found it.
+ */
+function PolicyLedger() {
+  const data = useQuery(api.policy.ledger)
+  if (!data || data.total < 6) return null
+
+  const withPromise = data.rows.filter((r) => r.promise)
+  const silent = data.rows.filter((r) => !r.promise)
+  const ordered = [...withPromise, ...silent]
+
+  return (
+    <div className="mt-16 border-t border-hair pt-10">
+      <p className="font-mono text-[11px] tracking-[0.2em] text-dim uppercase">
+        What it has read so far
+      </p>
+
+      <p className="font-display mt-5 max-w-[26ch] text-[clamp(22px,2.6vw,32px)] leading-[1.15] font-medium tracking-[-0.03em]">
+        {data.silent} of {data.total} give you no number to hold them to.
+      </p>
+
+      <dl className="mt-7 flex flex-wrap gap-x-12 gap-y-5">
+        {[
+          [data.total, 'policies read'],
+          [data.publish, 'publish a deadline'],
+          [data.silent, 'publish nothing'],
+          ...(data.medianDays ? [[`${data.medianDays} days`, 'the middle promise'] as const] : []),
+        ].map(([n, label]) => (
+          <div key={label}>
+            <dt className="font-display text-[28px] leading-none font-semibold tracking-tight">
+              {n}
+            </dt>
+            <dd className="mt-1.5 text-[13px] text-dim">{label}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <ul className="mt-8 grid gap-x-10 gap-y-0 sm:grid-cols-2 lg:grid-cols-3">
+        {ordered.slice(0, 27).map((r) => (
+          <li
+            key={r.domain}
+            className="flex items-baseline gap-3 border-b border-hair/60 py-2.5 text-[14px]"
+          >
+            <span className="min-w-0 flex-1 truncate font-mono text-[12.5px] text-paper/80">
+              {r.domain}
+            </span>
+            {r.promise ? (
+              <a
+                href={r.source ?? undefined}
+                target="_blank"
+                rel="noreferrer"
+                className="shrink-0 underline-offset-4 hover:underline"
+              >
+                {sayPromise(r.promise)}
+              </a>
+            ) : (
+              <span className="shrink-0 text-dim">nothing published</span>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      <p className="mt-5 max-w-[68ch] text-[13px] leading-relaxed text-dim">
+        Every row is a live page, read by the same code that runs on a claim, on the company's own
+        site. <span className="text-paper/70">Nothing published</span> means nothing it could find
+        there — which is exactly what a customer finds. Add a company above and it joins this list
+        without a refresh.
+      </p>
+    </div>
   )
 }
 

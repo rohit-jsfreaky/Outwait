@@ -53,6 +53,42 @@ export async function scrape(url: string): Promise<string> {
   return String(json?.data?.markdown ?? "");
 }
 
+/**
+ * A company's forum is not a company's promise.
+ *
+ * Sky's own site surfaced "@Carla1984 Automatic refunds can take 6 weeks" —
+ * true-looking, on their domain, and written by another customer. Anything a
+ * stranger can post is not a commitment, so it never counts, however well it
+ * ranks.
+ */
+const COMMUNITY =
+  /(?:^|\.)(?:community|forum|forums|answers|discussions?)\.|\/(?:community|forum|forums|discussions?|t5|topic|thread|questions?)\//i;
+
+/**
+ * Score a candidate page by how likely it is to be the policy itself.
+ *
+ * Search ranking moves day to day, and a company's own site usually offers
+ * several plausible pages. Reading them in a stable order — the page whose
+ * address says "refunds" first — keeps the same answer coming back tomorrow.
+ */
+export function rankPolicyUrls<T extends { url: string }>(hits: T[]): T[] {
+  const score = (u: string) => {
+    if (COMMUNITY.test(u)) return -1;
+    const p = u.toLowerCase();
+    let s = 0;
+    if (/refund/.test(p)) s += 4;
+    if (/return/.test(p)) s += 3;
+    if (/cancel/.test(p)) s += 2;
+    if (/polic|terms|help|support|customer-service/.test(p)) s += 1;
+    return s;
+  };
+  return hits
+    .map((h) => ({ h, s: score(h.url) }))
+    .filter((x) => x.s >= 0)
+    .sort((a, b) => b.s - a.s)
+    .map((x) => x.h);
+}
+
 /** Web search, scoped to what actually helps a case. */
 export async function search(query: string, limit = 5): Promise<Found[]> {
   const json = await firecrawl("/search", { query, limit });
@@ -213,7 +249,7 @@ export const readTheirPolicy = internalAction({
       // rarely finds what the first two did not, and this runs on every case.
       let promise: Promised | null = null;
       let promiseFrom = "";
-      for (const hit of hits.slice(0, 2)) {
+      for (const hit of rankPolicyUrls(hits).slice(0, 2)) {
         let page = "";
         try {
           page = await scrape(hit.url);

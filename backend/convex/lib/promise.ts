@@ -24,7 +24,7 @@
  * the extractor leaves the old, worse answer sitting on the public page for a
  * week. A cached row read by an older version is simply ignored and re-read.
  */
-export const EXTRACTOR_VERSION = 4;
+export const EXTRACTOR_VERSION = 10;
 
 export type Promised = {
   /** The number they published. A range is read at its upper bound. */
@@ -77,7 +77,7 @@ const SELF = /\b(we|we'?ll|our|us)\b/i;
  * this guard it wins simply by appearing first on the page.
  */
 const THIRD_PARTY =
-  /\b(?:your|the)\s+(?:bank|banks|card\s+issuer|issuer|card\s+provider|payment\s+provider|building\s+society|credit\s+card\s+company)\b/i;
+  /\b(?:(?:your|the)\s+(?:bank|banks|card\s+issuer|issuer|card\s+provider|payment\s+provider|building\s+society|credit\s+card\s+company)|(?:mobile\s+phone|carrier|operator)\s+billing|card\s+approval|pre-?authoris\w*|authoris(?:ation|ed)\s+hold)\b/i;
 
 /**
  * A payment provider's window is not the seller's promise either.
@@ -102,12 +102,41 @@ const PAYMENT_BRAND =
  */
 const BACKWARD = new RegExp(
   DURATION.source +
-    String.raw`\s*(?:prior\s+to|before|ahead\s+of|in\s+advance\s+of|preceding|from\s+the\s+date\s+of\s+purchase|of\s+(?:purchase|delivery|receipt|booking|travel|departure|dispatch))`,
+    String.raw`\s*(?:prior\s+to|before|ahead\s+of|in\s+advance\s+of|preceding|from\s+the\s+date\s+of\s+purchase|of\s+(?:the\s+|your\s+)?(?:purchase|delivery|receipt|booking|travel|departure|dispatch|order|invoice)|of\s+(?:the\s+)?\w+s?\s+being\s+(?:delivered|received|dispatched|sent))`,
   "i",
 );
 
-/** The reader doing something is the reader's step, not their deadline. */
-const YOU_ACT = /\byou\s+(?:may|can|could|might|will\s+need\s+to)\s+(?:apply|request|claim|submit|ask|contact)\b/i;
+/**
+ * The reader doing something is the reader's step, not their deadline.
+ *
+ * "You can return new and unopened products within 365 days ... for a full
+ * refund" is IKEA's actual wording. That 365 days is how long *you* have, and
+ * reading it as IKEA's turnaround would put a year on a claim. It slips past
+ * ON_YOU because nothing in it is an obligation — it is an offer.
+ */
+const YOU_ACT =
+  /\byou\s+(?:(?:may|can|could|might|will\s+need\s+to)\s+(?:apply|request|claim|submit|ask|contact|return|exchange|send\s+back|bring\s+back)|(?:return|cancel|send\s+back|bring\s+back)\b)/i;
+
+/**
+ * How long a thing stays usable is not how long they take to pay.
+ *
+ * easyJet publishes "we may, in our discretion, offer you a refund or flight
+ * voucher ... to be used within six months". The six months is the voucher's
+ * shelf life. The giveaway is the verb sitting directly in front of the
+ * duration, so that is what this matches.
+ */
+const VALIDITY = new RegExp(
+  String.raw`\b(?:to\s+be\s+used|to\s+use|be\s+used|used|valid|validity|redeem(?:ed|able)?|expires?|expiring|claimed)\s+` +
+    DURATION.source,
+  "i",
+);
+
+/**
+ * A voucher is not your money back, so its clock is not the one that matters.
+ * This also catches the credit-note and travel-credit wording that airlines
+ * reach for when they would rather not refund at all.
+ */
+const VOUCHER = /\b(voucher|credit\s+note|store\s+credit|travel\s+credit|gift\s+certificate)\b/i;
 
 /** Postage, unless the same sentence is also about money coming back. */
 const DELIVERY = /\b(deliver\w*|dispatch\w*|ship(?:s|ped|ping)?|postage|arrive[sd]?|courier)\b/i;
@@ -141,9 +170,12 @@ function segments(markdown: string): string[] {
       .replace(/[#*_>`]+/g, " ")
       .replace(/[ \t]+/g, " ")
       .trim()
-      // The bullet or number a list item opens with is punctuation, not part
-      // of the sentence — and this sentence gets shown inside quotation marks.
-      .replace(/^(?:[-–—•]|\d{1,2}[.)])\s+/, "")
+      // Whatever a list item opens with is decoration, not part of the
+      // sentence — and this sentence gets shown inside quotation marks. Boots
+      // bullets theirs with "➡", so anything that is not a letter, a digit or
+      // an opening quote goes.
+      .replace(/^[^A-Za-z0-9"'(]+/, "")
+      .replace(/^(?:\d{1,2}[.)])\s+/, "")
       .trim();
     if (!flat) continue;
     for (const piece of flat.split(/(?<=[.!?;])\s+/)) {
@@ -163,7 +195,10 @@ function readDuration(sentence: string): Omit<Promised, "quote"> | null {
   // A range is read at its upper bound — the most generous reading of their
   // own promise, so "day 47 of 14" is never something they can argue with.
   const days = Math.max(lo ?? 0, hi ?? 0);
-  if (!days || days > 365) return null;
+  // Nobody promises to refund you in four months. Past this, the number is a
+  // return window, a warranty or a guarantee period that happened to land in a
+  // sentence about refunds — an ombudsman's eight weeks is the realistic top.
+  if (!days || days > 120) return null;
 
   const raw = m[3].toLowerCase();
   const unit: Promised["unit"] = /week/.test(raw)
@@ -191,7 +226,8 @@ export function extractPromise(markdown: string): Promised | null {
   for (const s of segments(markdown.slice(0, 80000))) {
     if (!CONTEXT.test(s)) continue;
     if (ON_YOU.test(s) || YOU_ACT.test(s)) continue;
-    if (BACKWARD.test(s)) continue;
+    if (BACKWARD.test(s) || VALIDITY.test(s)) continue;
+    if (VOUCHER.test(s)) continue;
     if (THIRD_PARTY.test(s) || PAYMENT_BRAND.test(s)) continue;
     if (DELIVERY.test(s) && !MONEY.test(s)) continue;
 
