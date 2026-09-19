@@ -380,3 +380,77 @@ export const dropAsks = internalMutation({
     return { dropped: ids.length };
   },
 });
+
+/**
+ * Retire a handoff without touching anything else.
+ *
+ * `handoffs.markDone` is the real completion path: it needs a browser session,
+ * stops it, and unblocks the track that was waiting. None of that is right for
+ * a duplicate that should never have been live. This only closes the row.
+ *
+ * Several live handoffs on one case is not a bug in the product — each one is
+ * a real link that was really sent — but it puts the same line on the board
+ * twice, which reads as a glitch.
+ */
+export const retireHandoff = internalMutation({
+  args: { handoffId: v.id("handoffs") },
+  handler: async (ctx, { handoffId }) => {
+    const h = await ctx.db.get("handoffs", handoffId);
+    if (!h) throw new Error("no such handoff");
+    await ctx.db.patch("handoffs", handoffId, {
+      state: "expired",
+      expiresAt: Date.now() - 1000,
+    });
+    return { retired: h.reason, was: h.state };
+  },
+});
+
+/** Push a handoff's clock out, so a link stays tappable for a recording. */
+export const extendHandoff = internalMutation({
+  args: { handoffId: v.id("handoffs"), days: v.number() },
+  handler: async (ctx, { handoffId, days }) => {
+    const expiresAt = Date.now() + days * 86400000;
+    await ctx.db.patch("handoffs", handoffId, { expiresAt });
+    return { expiresAt, until: new Date(expiresAt).toISOString() };
+  },
+});
+
+/**
+ * How many Firecrawl credits are left.
+ *
+ * The key only exists as a deployment environment variable, so this asks from
+ * inside the deployment rather than anyone copying it to a laptop. Read-only,
+ * and it returns the balance, never the key.
+ *
+ * Worth knowing before a demo: the policy reader and the ledger both spend
+ * credits, and a demo that runs out mid-take fails in the most embarrassing
+ * way available.
+ */
+export const firecrawlCredits = internalAction({
+  args: {},
+  handler: async (): Promise<{ status: number; body: string }> => {
+    const key = process.env.FIRECRAWL_API_KEY;
+    if (!key) return { status: 0, body: "FIRECRAWL_API_KEY is not set" };
+    const res = await fetch("https://api.firecrawl.dev/v2/team/credit-usage", {
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    return { status: res.status, body: (await res.text()).slice(0, 400) };
+  },
+});
+
+/** Mark exactly one case as safe to show without an account. */
+export const setPreviewable = internalMutation({
+  args: { caseId: v.id("cases"), on: v.boolean() },
+  handler: async (ctx, { caseId, on }) => {
+    // Only ever one at a time: clearing the others first means the public route
+    // can never start serving a second case because somebody forgot to unset.
+    const all = await ctx.db.query("cases").take(200);
+    for (const c of all) {
+      if (c.previewable && c._id !== caseId) {
+        await ctx.db.patch("cases", c._id, { previewable: undefined });
+      }
+    }
+    await ctx.db.patch("cases", caseId, { previewable: on ? true : undefined });
+    return { caseId, previewable: on };
+  },
+});

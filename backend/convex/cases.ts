@@ -138,7 +138,7 @@ export const board = query({
           caseTitle: c?.title ?? "Unknown case",
           kind: "approve" as string,
           question: `Approve the ${d.purpose} before I send it`,
-          why: d.subject,
+          why: hideAddresses(d.subject),
           askedAt: d.createdAt,
           remindersSent: 0,
           sendsTo: d.to.join(", ") as string | undefined,
@@ -155,7 +155,7 @@ export const board = query({
           caseId: h.caseId,
           caseTitle: c?.title ?? "Unknown case",
           kind: "handover" as string,
-          question: h.reason,
+          question: hideAddresses(h.reason),
           why: "Your login, not mine. One tap, and I carry on from there.",
           askedAt: h._creationTime,
           remindersSent: 0,
@@ -343,5 +343,124 @@ export const purge = internalMutation({
     }
     await ctx.db.delete("cases", args.caseId);
     return removed;
+  },
+});
+
+/**
+ * Hide addresses in text that is about to be shown to the public.
+ *
+ * The agent's own inbox is deliberately public — it is printed on the landing
+ * page and in the README, because forwarding mail to it is how you start. Every
+ * other address in an event line belongs to a person or a counterparty and is
+ * nobody else's business, so only the domain survives.
+ *
+ * Applied to free text rather than to fields, because the addresses that got
+ * into this case arrived inside sentences the agent wrote.
+ */
+const PUBLIC_INBOX = "outwait@agentmail.to";
+
+function hideAddresses(text: string): string {
+  return text.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, (a) =>
+    a.toLowerCase() === PUBLIC_INBOX ? a : "•••@" + a.split("@")[1],
+  );
+}
+
+/**
+ * One case, readable by anyone, with no account.
+ *
+ * The board and `cases.get` are signed-in only for a good reason: they hand out
+ * handover tokens, and a token IS the credential — anyone holding one can open
+ * a live browser session on that case. This query exists so a stranger can
+ * still see what the product actually looks like, which every strong entry in
+ * this field lets you do.
+ *
+ * It is not `get` with the auth check removed. Three things never leave here:
+ *
+ *   1. handover tokens — so no link out of this screen can start a session
+ *   2. email addresses — the owner's, the members', and the draft recipients'
+ *   3. evidence file URLs — a receipt photo is somebody's real document
+ *   4. addresses written into event text — the agent narrates what it sent and
+ *      to whom, and those sentences carry real inboxes
+ *
+ * And it serves only a case explicitly flagged `previewable`, set one at a time
+ * by `admin.setPreviewable`. A case nobody opted in can never appear here, even
+ * if its id is guessed.
+ */
+export const preview = query({
+  args: {},
+  handler: async (ctx) => {
+    const all = await ctx.db.query("cases").take(200);
+    const c = all.find((x) => x.previewable === true);
+    if (!c) return null;
+
+    const [tracks, events, evidence, asks, drafts, handoffs, members] = await Promise.all([
+      ctx.db.query("tracks").withIndex("by_caseId", (q) => q.eq("caseId", c._id)).take(20),
+      ctx.db.query("events").withIndex("by_caseId", (q) => q.eq("caseId", c._id)).order("desc").take(50),
+      ctx.db.query("evidence").withIndex("by_caseId", (q) => q.eq("caseId", c._id)).order("desc").take(20),
+      ctx.db.query("asks").withIndex("by_caseId_and_state", (q) => q.eq("caseId", c._id).eq("state", "open")).take(10),
+      ctx.db.query("drafts").withIndex("by_caseId", (q) => q.eq("caseId", c._id)).take(20),
+      ctx.db.query("handoffs").withIndex("by_caseId", (q) => q.eq("caseId", c._id)).take(20),
+      ctx.db.query("caseMembers").withIndex("by_caseId", (q) => q.eq("caseId", c._id)).take(20),
+    ]);
+
+    const now = Date.now();
+
+    // Same list the owner sees, with the two things that must not travel taken
+    // out: no `href` (that carries the token) and no recipient address.
+    const waiting = [
+      ...drafts
+        .filter((d) => d.state === "held")
+        .map((d) => ({
+          _id: d._id as string,
+          kind: "approve",
+          question: `Approve the ${d.purpose} before I send it`,
+          why: d.subject,
+          askedAt: d.createdAt,
+        })),
+      ...asks.map((a) => ({
+        _id: a._id as string,
+        kind: a.kind as string,
+        question: hideAddresses(a.question),
+        why: a.why ? hideAddresses(a.why) : a.why,
+        askedAt: a.askedAt,
+      })),
+      ...handoffs
+        .filter((h) => (h.state === "pending" || h.state === "open") && h.expiresAt > now)
+        .map((h) => ({
+          _id: h._id as string,
+          kind: "handover",
+          question: h.reason,
+          why: "Your login, not mine. One tap, and I carry on from there.",
+          askedAt: h._creationTime,
+        })),
+    ].sort((a, b) => b.askedAt - a.askedAt);
+
+    return {
+      title: c.title,
+      // `company.replyTo` is an address. Only the name and domain travel.
+      company: { name: c.company.name, domain: c.company.domain },
+      amount: c.amount,
+      currency: c.currency,
+      reference: c.reference,
+      status: c.status,
+      summary: c.summary ? hideAddresses(c.summary) : c.summary,
+      openedAt: c.openedAt ?? c._creationTime,
+      lastMovedAt: c.lastMovedAt,
+      promise: c.promise,
+      deadline: c.deadline,
+      // How many people share this claim, not who they are.
+      memberCount: members.length,
+      tracks: tracks.map((t) => ({
+        _id: t._id,
+        kind: t.kind,
+        label: t.label,
+        state: t.state,
+        detail: t.detail ? hideAddresses(t.detail) : t.detail,
+      })),
+      waiting,
+      // The names of what was sent in, never a link to the file itself.
+      fileCount: evidence.filter((e) => e.storageId).length,
+      events: events.map((e) => ({ _id: e._id, text: hideAddresses(e.text), at: e.at })),
+    };
   },
 });

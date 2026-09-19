@@ -53,9 +53,9 @@ const INBOX = 'outwait@agentmail.to'
  * find out two things: is anything happening, and does it need me. So the words
  * do that work — no RUNNING, no BLOCKED, no "2/5 steps".
  */
-type Tone = 'good' | 'busy' | 'you' | 'quiet'
+export type Tone = 'good' | 'busy' | 'you' | 'quiet'
 
-const CASE_STATUS: Record<string, { label: string; tone: Tone }> = {
+export const CASE_STATUS: Record<string, { label: string; tone: Tone }> = {
   intake: { label: 'Reading your email', tone: 'busy' },
   working: { label: 'Working on it', tone: 'busy' },
   waiting_on_them: { label: 'Waiting for them to reply', tone: 'quiet' },
@@ -64,7 +64,7 @@ const CASE_STATUS: Record<string, { label: string; tone: Tone }> = {
   closed: { label: 'Closed', tone: 'quiet' },
 }
 
-const STEP_STATUS: Record<string, { label: string; tone: Tone }> = {
+export const STEP_STATUS: Record<string, { label: string; tone: Tone }> = {
   done: { label: 'Done', tone: 'good' },
   running: { label: 'Happening now', tone: 'busy' },
   blocked: { label: 'Needs you', tone: 'you' },
@@ -80,7 +80,7 @@ const TONE: Record<Tone, { chip: string; dot: string }> = {
 }
 
 /** Time the way a person says it, not the way a log prints it. */
-function when(at: number) {
+export function when(at: number) {
   const mins = Math.round((Date.now() - at) / 60000)
   if (mins < 1) return 'just now'
   if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'} ago`
@@ -95,7 +95,7 @@ function when(at: number) {
 
 const SYMBOL: Record<string, string> = { GBP: '£', USD: '$', EUR: '€', INR: '₹' }
 
-function money(amount?: number, currency?: string) {
+export function money(amount?: number, currency?: string) {
   if (amount === undefined) return null
   return `${currency ? (SYMBOL[currency] ?? currency + ' ') : ''}${amount.toLocaleString()}`
 }
@@ -200,7 +200,7 @@ function SignOutItem() {
 
 /* --- bits ----------------------------------------------------------------- */
 
-function Chip({ tone, children }: { tone: Tone; children: React.ReactNode }) {
+export function Chip({ tone, children }: { tone: Tone; children: React.ReactNode }) {
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] font-medium ${TONE[tone].chip}`}
@@ -224,7 +224,7 @@ function Doodle({ name, className = '' }: { name: string; className?: string }) 
 }
 
 /** A right-rail block. Quiet by default — these are glanced at, not read. */
-function RailCard({ children }: { children: React.ReactNode }) {
+export function RailCard({ children }: { children: React.ReactNode }) {
   return (
     <Card className="gap-0 rounded-2xl border-hair bg-ink-700 py-0 shadow-none">
       <CardContent className="p-5">{children}</CardContent>
@@ -573,6 +573,19 @@ function Home({ go }: { go: (v: View) => void }) {
           for you across {data.cases.length} {data.cases.length === 1 ? 'claim' : 'claims'}.
           We've been at it for {days} days.
         </p>
+
+        {/* Said plainly, once. Every strong entry in this field demonstrates on
+            invented cases; the ones that lose points are the ones that do not
+            say so. The machinery underneath is real and the line says which. */}
+        <p className="mt-3 max-w-[72ch] text-[14px] leading-relaxed text-dim">
+          These are example claims — the companies are invented. What the agent did to them is
+          not: the emails really went through AgentMail, the research really read live pages, and
+          the browser handover was a real session.{' '}
+          <a href="/preview" className="underline underline-offset-4 hover:text-paper">
+            Anyone can read one without signing in
+          </a>
+          .
+        </p>
       </section>
 
       <div className="mt-8 grid items-start gap-6 lg:grid-cols-12 lg:gap-8">
@@ -759,7 +772,7 @@ function daysOver(deadline?: number) {
  * sentence still sitting there. No model touches it, and when a page did not
  * clearly say, this block does not render at all rather than guess.
  */
-function TheirDeadline({
+export function TheirDeadline({
   promise,
   deadline,
   openedAt,
@@ -1012,7 +1025,7 @@ function CaseView({ id, go }: { id: string; go: (v: View) => void }) {
  * The full log is the proof the agent really did the work, so it stays — but
  * behind a click. Nobody opens a refund app to read forty lines of history.
  */
-function Story({ events }: { events: Array<{ _id: string; text: string; at: number }> }) {
+export function Story({ events }: { events: Array<{ _id: string; text: string; at: number }> }) {
   const [open, setOpen] = useState(false)
   const shown = open ? events : events.slice(0, 5)
   const hidden = events.length - shown.length

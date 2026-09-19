@@ -6,6 +6,7 @@ import './index.css'
 import App from './App.tsx'
 import Handover from './Handover.tsx'
 import Landing from './Landing.tsx'
+import Preview from './Preview.tsx'
 
 // VITE_CONVEX_URL is set by the static-hosting CLI at deploy time, and by
 // `npx convex dev` into ../backend/.env.local during development.
@@ -27,6 +28,11 @@ function Root() {
   // product promises — that it costs you ten seconds.
   const match = /^\/handover\/([A-Za-z0-9]+)\/?$/.exec(path)
   if (match) return <Handover token={match[1]} />
+
+  // One real claim, readable with no account. The board stays behind auth
+  // because it hands out handover tokens; this serves a sanitised copy of a
+  // single opted-in case, so a stranger can see the product without one.
+  if (path === '/preview' || path === '/preview/') return <Preview />
 
   // The landing page is the front door; the board lives at /board. Someone who
   // arrives from the video or a link should read the argument first.

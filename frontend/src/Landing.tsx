@@ -145,7 +145,7 @@ function Hero({ onOpen }: { onOpen: () => void }) {
                 variant="ghost"
                 className="h-12 rounded-full px-7 text-[15px] font-medium text-paper/70 ring-1 ring-hair hover:bg-paper/5 hover:text-paper"
               >
-                <a href={`mailto:${INBOX}`}>Forward an email instead</a>
+                <a href="/preview">See a real claim — no account</a>
               </Button>
             </div>
           </div>

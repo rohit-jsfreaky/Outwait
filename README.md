@@ -10,6 +10,7 @@ An agent that chases a company for money they owe you — for weeks, on its own 
 and taps you only for the ten seconds that genuinely need a human.
 
 [**Live app**](https://tangible-finch-783.convex.site) ·
+[**Watch the demo**](https://youtu.be/Pwzjoth0D60) ·
 [**Check it yourself**](https://tangible-finch-783.convex.site/#check) ·
 [Build log](hackathon.md) ·
 [The three boundaries](#the-three-boundaries) ·
@@ -111,13 +112,25 @@ link. If they publish nothing, it says that instead.
 </div>
 
 No model is in that path. The number is found by anchored regex over the page text and checked
-against fixtures of real policy wording — including the sentences that must **not** count. A
-company pointing at your bank (*"it can take up to five working days for your bank to process
-it"*), a payment provider's window (*"PayPal refunds can take up to 30 days"*), an eligibility
-window that looks backwards (*"within 10 days prior to your flight"*) and a deadline placed on
-**you** (*"you must return the item within 14 days"*) are all real sentences from real pages, and
-none of them is a promise the company made. Each one is a fixture
-(`backend/experiments/promise-extraction.test.mjs`, 32 cases).
+against fixtures of real policy wording — and, more importantly, against the sentences that must
+**not** count. Ten kinds of sentence look exactly like a promise and are not one, and every one of
+these is real text pulled off a real page:
+
+| What it looks like | What it actually is |
+|---|---|
+| *"you must return the item within 14 days"* | a deadline on **you** |
+| *"you can return new and unopened products within 365 days"* | your return window, offered not obliged — IKEA |
+| *"within 30 days of the purchase date"* | a return window again — H&M |
+| *"it can take up to five working days for your bank to process it"* | your bank's clock — Argos |
+| *"PayPal refunds can take up to 30 days"* | a payment provider's window — Argos |
+| *"Mobile phone billing — up to 60 days for the statement"* | the carrier's clock — Apple |
+| *"Card approval cancellation within 3-5 business days"* | an authorisation hold releasing — Airbnb |
+| *"a refund or flight voucher ... to be used within six months"* | a voucher's shelf life — easyJet |
+| *"within 10 days prior to your flight"* | an eligibility window running backwards — Ryanair |
+| *"@Carla1984 Automatic refunds can take 6 weeks"* | a community forum post — Sky |
+
+All ten are refused. Each is a fixture: **41 cases** in
+`backend/experiments/promise-extraction.test.mjs`, runnable with `node` and no setup.
 
 On a real claim that number lands on the case with the date it runs out, and that sentence is what
 gets quoted back at them.

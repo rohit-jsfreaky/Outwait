@@ -4,6 +4,7 @@
 - **Event:** Convex All Gas Hackathon sponsored by OpenAI, Firecrawl, & AgentMail
 - **What it does:** Works a stuck admin case for weeks — fills the web forms itself, chases by email, and asks a human only for the ten seconds only a human can do.
 - **Live app:** https://tangible-finch-783.convex.site
+- **Video demo:** https://youtu.be/Pwzjoth0D60 (2:48)
 - **Repo:** https://github.com/rohit-jsfreaky/Outwait
 - **Frontend:** Convex static hosting
 - **Convex deployment:** https://tangible-finch-783.convex.cloud
@@ -12,7 +13,7 @@
 - **Auth:** Convex Auth
 - **AI models:** openai/gpt-5.6-luna (via OpenRouter)
 - **Started:** 2026-09-12T09:10:36Z
-- **Last updated:** 2026-09-19T14:45:00Z
+- **Last updated:** 2026-09-20T06:05:00Z
 
 ## Log
 

@@ -95,6 +95,10 @@ export default defineSchema({
       }),
     ),
     deadline: v.optional(v.number()),
+    // Opt-in, one case at a time: may this be shown to someone with no account?
+    // A flag rather than a hard-coded id, so nobody's real case can ever be
+    // exposed by a query that forgot to check who was asking.
+    previewable: v.optional(v.boolean()),
     // When the claim actually started. Separate from _creationTime because
     // that is read-only, and a case forwarded in today may already be six
     // weeks old — the elapsed time is the whole point of the product.
