@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { action, internalAction, internalMutation, internalQuery, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { rankPolicyUrls, search, scrape } from "./browser/research";
-import { EXTRACTOR_VERSION, extractPromise, type Promised } from "./lib/promise";
+import { EXTRACTOR_VERSION, extractPromise, movedPromise, type Promised } from "./lib/promise";
 import { promised } from "./schema";
 
 /**
@@ -101,6 +101,44 @@ export const store = internalMutation({
     };
 
     if (existing) {
+      // Did THEY move, or did WE get better at reading? Only the first is a
+      // change worth keeping.
+      //
+      //  - `ver` must match on both sides. A row read by an older extractor
+      //    that now reads differently moved because our rules improved, and
+      //    recording that as the company changing its policy would be a lie
+      //    with our own name on it.
+      //  - the quote is deliberately not compared. A page that reshuffles its
+      //    wording around the same "14 days" has not changed its promise, and
+      //    a changelog that fires on cosmetics is one nobody reads.
+      //  - both sides must have a number, for the reason in the schema.
+      const was = existing.promise;
+      const is = args.promise;
+      if (
+        existing.ver === EXTRACTOR_VERSION &&
+        // The SAME page, or it is not a comparison. Search does not return the
+        // same pages every run — a second look at currys.co.uk found a number
+        // where the first found none, and the company had changed nothing. A
+        // returns page saying "14 days" and a terms page saying "5 working
+        // days" are two true sentences about one company, so reading one after
+        // the other and publishing "they moved their deadline" would put an
+        // invented accusation against a real business on a public page.
+        existing.source !== undefined &&
+        existing.source === args.source &&
+        movedPromise(was, is) &&
+        was &&
+        is
+      ) {
+        await ctx.db.insert("policyChanges", {
+          domain: args.domain,
+          before: was,
+          after: is,
+          beforeSource: existing.source,
+          afterSource: args.source,
+          at: now,
+        });
+      }
+
       await ctx.db.patch("policyReads", existing._id, row);
       return now;
     }
@@ -156,12 +194,28 @@ export const ledger = query({
           ? sorted[(sorted.length - 1) / 2]
           : Math.round((sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2);
 
+    // Every time a company moved its own deadline while we were watching.
+    // Bounded: this is a strip on a landing page, not an archive.
+    const moved = await ctx.db.query("policyChanges").withIndex("by_at").order("desc").take(12);
+
+    // The oldest reading still held — how far back "nothing has moved" goes.
+    // Without it, an empty changelog reads as "we are not really looking".
+    const first = await ctx.db.query("policyReads").withIndex("by_readAt").first();
+
     return {
       total: rows.length,
       publish: kept.length,
       silent: rows.length - kept.length,
       medianDays: median,
       lastReadAt: rows[0]?.readAt ?? null,
+      watchingSince: first?.readAt ?? null,
+      changes: moved.map((c) => ({
+        domain: c.domain,
+        before: c.before,
+        after: c.after,
+        source: c.afterSource ?? null,
+        at: c.at,
+      })),
       rows: rows.map((r) => ({
         domain: r.domain,
         promise: r.promise ?? null,
@@ -317,5 +371,71 @@ export const sweep = internalAction({
       });
     }
     return out;
+  },
+});
+
+/**
+ * How many companies the daily pass re-reads.
+ *
+ * Deliberately a slice, not the whole ledger. A policy page is somebody's
+ * server, and a machine that reads all of them every morning is a machine
+ * being rude. Eight a day cycles the list in under a week, which is exactly
+ * the window `FRESH_MS` already treats an answer as good for, so no reading on
+ * the public page is ever older than it claims to be.
+ */
+const PER_DAY = 8;
+
+/**
+ * The companies whose answer has gone stale — nobody else.
+ *
+ * Re-reading an answer that is still fresh has no upside and a real downside:
+ * search does not return the same pages twice, so a needless re-read can
+ * replace a correct reading with a worse one, and every row here is quoted
+ * somewhere as a fact about a real company. `FRESH_MS` is already the age at
+ * which the public reader stops trusting a cached answer, so it is the honest
+ * line for this too: a row is re-read when, and only when, the page would no
+ * longer serve it from cache.
+ */
+export const due = internalQuery({
+  args: { now: v.number() },
+  handler: async (ctx, { now }) => {
+    const rows = await ctx.db
+      .query("policyReads")
+      .withIndex("by_readAt", (q) => q.lt("readAt", now - FRESH_MS))
+      .take(PER_DAY);
+    return rows.map((r) => r.domain);
+  },
+});
+
+/**
+ * The daily pass. Re-reads the companies whose answer is oldest, so the ledger
+ * is a thing being watched rather than a thing that was read once.
+ *
+ * Nothing here can fail loudly: a company whose page is down today is read
+ * again tomorrow, and one bad domain must not stop the other seven.
+ */
+export const daily = internalAction({
+  args: {},
+  handler: async (ctx): Promise<{ read: number; failed: number }> => {
+    // The clock is read here, in the action, and passed in: a query may not
+    // read the wall clock, because a reactive query that depends on `now`
+    // would never settle.
+    const domains: string[] = await ctx.runQuery(internal.policy.due, { now: Date.now() });
+    let read = 0;
+    let failed = 0;
+
+    for (const d of domains) {
+      const host = hostFrom(d);
+      if (!host) continue;
+      try {
+        const r = await readNow(ctx, host);
+        if (r.ok) read++;
+        else failed++;
+      } catch {
+        failed++;
+      }
+    }
+
+    return { read, failed };
   },
 });

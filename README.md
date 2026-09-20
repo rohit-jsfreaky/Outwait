@@ -10,7 +10,7 @@ An agent that chases a company for money they owe you — for weeks, on its own 
 and taps you only for the ten seconds that genuinely need a human.
 
 [**Live app**](https://tangible-finch-783.convex.site) ·
-[**Watch the demo**](https://youtu.be/Pwzjoth0D60) ·
+[**Watch the demo**](https://youtu.be/M2qJqtPx1tQ) ·
 [**Check it yourself**](https://tangible-finch-783.convex.site/#check) ·
 [Build log](hackathon.md) ·
 [The three boundaries](#the-three-boundaries) ·
@@ -135,7 +135,7 @@ All ten are refused. Each is a fixture: **41 cases** in
 On a real claim that number lands on the case with the date it runs out, and that sentence is what
 gets quoted back at them.
 
-### What we found when we pointed it at 27 companies
+### What we found when we pointed it at 28 companies
 
 The page keeps a public ledger of everything it has been asked to read. It is the product's own
 research, not a dataset we loaded: every row is a live page, read by the same code, linked so the
@@ -146,19 +146,25 @@ of you without a refresh.
 <img src="docs/screens/ledger.webp" alt="The public policy ledger" width="820" />
 </div>
 
-**15 of 27 give you no number to hold them to.** Not a slow number — no number. Sky, Vodafone,
-Currys, HSBC, Nationwide, Uber, Deliveroo, British Airways and easyJet publish nothing we could
-find on their own refund pages. Of the twelve that do, the middle promise is **14 days**, and the
-range runs from Next's **one working day** to Airbnb's **fifteen**.
+**20 of 28 set themselves a deadline.** They wrote it down. Only eight — Sky, Vodafone, Uber,
+Deliveroo, Just Eat, British Airways, Booking.com and easyJet — name no number at all on their own
+refund pages. Of the twenty that do, the middle promise is **14 days**, and the range runs from
+Next's **one working day** to Airbnb's **fifteen**.
 
-That is the thesis with a number on it. A company that never names a date can never be late, and
-"we are still processing it" is not a broken promise if no promise was made. The twelve that *do*
-publish one have handed you the only sentence that ends the argument — which is why the product
-goes and finds it.
+That is the thesis with a number on it, and it is not the one we expected. The deadline usually
+exists. It is just four clicks into a terms page, on the day you are too tired to look, and nobody
+is counting from it — so "we are still processing it" holds, indefinitely, against a promise the
+company made itself. For those twenty the product goes and finds that sentence and counts the days
+from it. For the other eight there is nothing to count from: a company that never names a date can
+never be late.
 
 <sub>Method: their own site only, the pages a search for their refund policy actually returns —
-the same place a customer would look. "Nothing published" means nothing found there, not that no
-such page exists anywhere. Community and forum URLs are excluded, because a post by another
+the same place a customer would look. Every row here has been read at least twice, because one read
+was not enough: a first pass reported eight of these companies as publishing nothing and a second
+pass found a published deadline on every one of them — Currys, Apple, Samsung, Wayfair, EE, H&M,
+HSBC and Nationwide. Search does not return the same pages twice, and the miss was ours, not
+theirs. "Nothing published" now means nothing found on two separate reads, and every reading is
+taken again once it is a week old. Community and forum URLs are excluded, because a post by another
 customer is not a commitment.</sub>
 
 ---

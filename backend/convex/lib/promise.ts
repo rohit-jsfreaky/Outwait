@@ -294,3 +294,25 @@ export function sayPromise(p: Promised): string {
           : "day";
   return `${p.days} ${noun}${p.days === 1 ? "" : "s"}`;
 }
+
+/**
+ * Did the company move its own deadline, or did we just read it differently?
+ *
+ * Only the first is a change worth keeping, so this is deliberately narrow:
+ *
+ *  - the quote is not compared. A page that rewrites the sentence around the
+ *    same "14 days" has not changed its promise, and a changelog that fires on
+ *    wording is one nobody reads.
+ *  - a missing side is never a change. "They published a number and now they
+ *    do not" is indistinguishable from "our search did not surface the page
+ *    today", and publishing a difference we cannot stand behind is the exact
+ *    move this product argues against.
+ *
+ * The caller is responsible for the third guard — that both readings came from
+ * the SAME extractor version — because a number that moved when our own rules
+ * improved moved for our reasons, not theirs.
+ */
+export function movedPromise(before?: Promised | null, after?: Promised | null): boolean {
+  if (!before || !after) return false;
+  return before.days !== after.days || before.unit !== after.unit;
+}

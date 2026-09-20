@@ -258,6 +258,30 @@ export default defineSchema({
     .index("by_domain", ["domain"])
     .index("by_readAt", ["readAt"]),
 
+  // What a company used to promise, kept because they overwrite it.
+  //
+  // A refund policy is a live page. When a company quietly moves its own
+  // deadline from 14 days to 30, the old sentence is gone from the web and
+  // nobody kept it — which is the whole reason a stuck claim is hard to argue.
+  // `policyReads` holds what a page says now; this holds what it said before.
+  //
+  // A row is written ONLY when a company that published a number still
+  // publishes one and the number moved. A number that merely stops being
+  // findable is not recorded as a change, because we cannot tell a policy
+  // that was withdrawn from a page our search did not surface that day, and
+  // publishing the difference as though we could would be the same
+  // unsupported claim this product exists to argue against.
+  policyChanges: defineTable({
+    domain: v.string(),
+    before: promised,
+    after: promised,
+    beforeSource: v.optional(v.string()),
+    afterSource: v.optional(v.string()),
+    at: v.number(),
+  })
+    .index("by_domain", ["domain"])
+    .index("by_at", ["at"]),
+
   evidence: defineTable({
     caseId: v.id("cases"),
     kind: v.string(),

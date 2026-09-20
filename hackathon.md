@@ -4,16 +4,16 @@
 - **Event:** Convex All Gas Hackathon sponsored by OpenAI, Firecrawl, & AgentMail
 - **What it does:** Works a stuck admin case for weeks — fills the web forms itself, chases by email, and asks a human only for the ten seconds only a human can do.
 - **Live app:** https://tangible-finch-783.convex.site
-- **Video demo:** https://youtu.be/Pwzjoth0D60 (2:48)
+- **Video demo:** https://youtu.be/M2qJqtPx1tQ (2:48)
 - **Repo:** https://github.com/rohit-jsfreaky/Outwait
 - **Frontend:** Convex static hosting
 - **Convex deployment:** https://tangible-finch-783.convex.cloud
 - **Components:** @convex-dev/static-hosting, @convex-dev/workflow, @convex-dev/presence
-- **Convex features:** schema, tables, indexes, queries, mutations, internal functions, actions, HTTP actions, scheduled functions, file storage, realtime queries
+- **Convex features:** schema, tables, indexes, queries, mutations, internal functions, actions, HTTP actions, scheduled functions, crons, file storage, realtime queries
 - **Auth:** Convex Auth
 - **AI models:** openai/gpt-5.6-luna (via OpenRouter)
 - **Started:** 2026-09-12T09:10:36Z
-- **Last updated:** 2026-09-20T06:05:00Z
+- **Last updated:** 2026-09-20T19:30:00Z
 
 ## Log
 
@@ -280,8 +280,10 @@ and leaves the subtraction to the reader.
 Then the same thing was opened to anyone, because an argument you cannot check is just a claim.
 `convex/policy.ts` is a public action behind a new landing section: type a company you have
 actually dealt with and the code that runs on a real claim goes and reads their pages while you
-wait. Argos gives itself 14 days, Ryanair 5 working days, and Currys publishes nothing we can find
-— which it says plainly rather than inventing something. Answers are cached by hostname for a
+wait. Argos gives itself 14 days and Ryanair 5 working days, and where it finds nothing it says so
+plainly rather than inventing something. (This entry also named Currys as publishing nothing.
+Currys publishes 14 days; the first read simply missed the page. Corrected 2026-09-20 below.)
+Answers are cached by hostname for a
 week, so the second person to ask about a company costs nothing, and each row carries the
 extractor version that produced it: improving the rules invalidates the old answers instead of
 leaving a worse one live for a week.
@@ -309,6 +311,11 @@ publish no refund deadline at all.** Sky, Vodafone, Currys, HSBC, Nationwide, Ub
 British Airways and easyJet give you nothing to hold them to. Of the twelve that do, the middle
 promise is 14 days, from Next's one working day to Airbnb's fifteen. A company that never names a
 date can never be late.
+
+> **This number was wrong, and the next day's entry is the correction.** Reading each company a
+> second time found a published deadline on eight of the fifteen. The real figure is 20 of 28.
+> Left standing here because a build log that quietly edits yesterday's claim is worth less than
+> one that shows where it was wrong.
 
 Getting there meant six more rounds of the extractor being wrong on real pages, each one found by
 running it rather than reading it, and each one a fixture before it was a fix (41 cases now):
@@ -340,3 +347,47 @@ rules retires the old readings instead of leaving them on a public page.
 rate limit. That limit exists for good reason, but applied to an admin re-read of thirty companies
 it turns into thirty refusals that look exactly like "they publish nothing" — which is how the
 first pass produced a table nobody should have trusted.
+
+### 2026-09-20 - working tree
+
+Yesterday's headline number was wrong, and finding that out is most of this entry.
+
+`policy.sweep` was pointed at companies the ledger listed as publishing nothing. Eight of them —
+Currys, Apple, Samsung, Wayfair, EE, H&M, HSBC and Nationwide — turned out to publish a deadline
+after all, in their own words, on their own pages:
+
+- Apple: *"Apple will mail a refund check to you within 10 business days."*
+- Currys: *"we refund you as soon as possible and within 14 days of you telling us…"*
+- HSBC: 5 working days. Nationwide: 14 days. H&M: 14 days. Wayfair: 14 business days.
+
+Nothing had changed on their side. Search does not return the same pages twice, so a single read
+of a company is a sample, not an answer — and the first sample had been published as though it
+were one. The corrected ledger reads **20 of 28 publish a deadline, 8 do not**, median still 14
+days. That inverts the claim the product was making: the deadline usually exists, and the problem
+is that nobody reads it — which is a better argument for the product than the one it replaced,
+and the only reason to prefer it is that it is true.
+
+Three changes came out of it, and two of them are guards rather than features.
+
+**The ledger is now re-read on a schedule.** `convex/crons.ts` runs `policy.daily` every morning;
+`policy.due` hands it the companies whose reading has passed `FRESH_MS`, capped at eight a day.
+The cap is deliberate — a policy page is somebody's server, and reading all of them every morning
+is a machine being rude — and the staleness threshold is the same one the public reader already
+uses to stop trusting a cached answer, so no row on the page is ever older than it claims.
+
+**A change is only recorded when the same page says something different.** `policyChanges` keeps
+what a company used to promise, because they overwrite it and nobody else keeps the old sentence.
+But `policy.store` writes a row only when the reading came from the same URL, under the same
+extractor version, with both sides carrying a number. Without the URL guard, reading a returns
+page one week and a terms page the next would publish *"they moved their deadline"* about a
+company that had done nothing — an invented accusation against a real business, on a public page,
+which is the exact move this product exists to argue against. A number that merely stops being
+findable is not recorded either, for the same reason the eight above were not a change.
+
+`experiments/policy-change.test.mjs` covers the rule in 13 cases, and the ones that matter are the
+negatives: a different page of the same site, a row from an older extractor version, a page
+reworded around the same number, a company that published nothing before.
+
+The landing page now carries the changelog under the ledger. It is empty, and it says so, with the
+date it has been watching since — an empty changelog that does not say what it is watching for
+reads as not looking.

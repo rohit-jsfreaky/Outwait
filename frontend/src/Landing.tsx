@@ -332,6 +332,11 @@ const TRY = ['argos.co.uk', 'currys.co.uk', 'ryanair.com']
 
 type Result = Awaited<ReturnType<ReturnType<typeof useAction<typeof api.policy.read>>>>
 
+/** "14 Sep" — enough to see when, without pretending to a timestamp. */
+function day(ms: number) {
+  return new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+}
+
 function sayPromise(p: { days: number; unit: string }) {
   const noun =
     p.unit === 'working'
@@ -528,9 +533,57 @@ function PolicyLedger() {
         ))}
       </ul>
 
+      {/* The changelog.
+          A refund policy is a live page. When a company moves its own deadline
+          the old sentence leaves the web with it, and the person arguing about
+          a claim opened last month has nothing left to point at. This is the
+          only copy. It is usually empty, and an empty one still says what is
+          being watched and since when — otherwise it reads as not looking. */}
+      <div className="mt-10 border-t border-hair/60 pt-6">
+        <p className="font-mono text-[11px] tracking-[0.2em] text-dim uppercase">
+          What has moved since we started watching
+        </p>
+
+        {data.changes.length > 0 ? (
+          <ul className="mt-4 space-y-2.5">
+            {data.changes.map((c) => (
+              <li key={`${c.domain}-${c.at}`} className="text-[14px]">
+                <span className="font-mono text-[12.5px] text-paper/80">{c.domain}</span>
+                <span className="text-dim"> moved from </span>
+                <span className="text-paper/60 line-through">{sayPromise(c.before)}</span>
+                <span className="text-dim"> to </span>
+                {c.source ? (
+                  <a
+                    href={c.source}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline-offset-4 hover:underline"
+                  >
+                    {sayPromise(c.after)}
+                  </a>
+                ) : (
+                  <span>{sayPromise(c.after)}</span>
+                )}
+                <span className="text-dim"> · {day(c.at)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-4 max-w-[66ch] text-[14px] leading-relaxed text-dim">
+            Nothing yet — no company here has moved its own deadline since{' '}
+            <span className="text-paper/70">
+              {data.watchingSince ? day(data.watchingSince) : 'we began'}
+            </span>
+            . If one does, the sentence it used to publish is kept on this page, because theirs
+            will be gone.
+          </p>
+        )}
+      </div>
+
       <p className="mt-5 max-w-[68ch] text-[13px] leading-relaxed text-dim">
         Every row is a live page, read by the same code that runs on a claim, on the company's own
-        site. <span className="text-paper/70">Nothing published</span> means nothing it could find
+        site. A reading is taken again once it is a week old, so nothing here is older than it
+        says. <span className="text-paper/70">Nothing published</span> means nothing it could find
         there — which is exactly what a customer finds. Add a company above and it joins this list
         without a refresh.
       </p>

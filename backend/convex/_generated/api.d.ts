@@ -19,6 +19,7 @@ import type * as browser_firecrawl from "../browser/firecrawl.js";
 import type * as browser_research from "../browser/research.js";
 import type * as browser_signup from "../browser/signup.js";
 import type * as cases from "../cases.js";
+import type * as crons from "../crons.js";
 import type * as drafts from "../drafts.js";
 import type * as handoffs from "../handoffs.js";
 import type * as http from "../http.js";
@@ -54,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   "browser/research": typeof browser_research;
   "browser/signup": typeof browser_signup;
   cases: typeof cases;
+  crons: typeof crons;
   drafts: typeof drafts;
   handoffs: typeof handoffs;
   http: typeof http;
