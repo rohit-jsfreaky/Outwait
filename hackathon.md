@@ -2,18 +2,23 @@
 
 - **Project:** Outwait
 - **Event:** Convex All Gas Hackathon sponsored by OpenAI, Firecrawl, & AgentMail
-- **What it does:** Works a stuck admin case for weeks — fills the web forms itself, chases by email, and asks a human only for the ten seconds only a human can do.
+- **What it does:** Companies do not say no; they make it take longer than you are willing to spend. Outwait works a stuck refund or deposit claim for weeks instead of you. A case starts by **forwarding an email** — no form — because the forwarded thread already carries the company, the reference number, the dates and the history. From there it fills their web forms itself, chases by email, sleeps a week, chases again and escalates. It comes back to you only for the ten seconds only you can do: approving a binding letter, or typing your own password into a browser it hands to your phone.
 - **Live app:** https://tangible-finch-783.convex.site
+- **Try it with no account and no sign-in:** https://tangible-finch-783.convex.site/preview — a real claim end to end, every email it sent and the two places it stopped and asked a human.
+- **Check its homework, no account:** https://tangible-finch-783.convex.site/#check — type any company and the same code that runs on a real claim reads their refund pages while you wait, and shows the deadline they set themselves with the sentence and a link.
 - **Video demo:** https://youtu.be/M2qJqtPx1tQ (2:48)
 - **Repo:** https://github.com/rohit-jsfreaky/Outwait
-- **Frontend:** Convex static hosting
+- **Frontend:** Convex static hosting (convex.site)
 - **Convex deployment:** https://tangible-finch-783.convex.cloud
-- **Components:** @convex-dev/static-hosting, @convex-dev/workflow, @convex-dev/presence
-- **Convex features:** schema, tables, indexes, queries, mutations, internal functions, actions, HTTP actions, scheduled functions, crons, file storage, realtime queries
-- **Auth:** Convex Auth
-- **AI models:** openai/gpt-5.6-luna (via OpenRouter)
+- **Components (3):** @convex-dev/static-hosting; @convex-dev/workflow — the chase is a durable workflow that writes, sleeps seven days, writes again and escalates, so it survives restarts over weeks; @convex-dev/presence — who else is on this shared case right now and who is driving a handover.
+- **Convex features:** 14 tables, 30 indexes, 109 functions (`npx convex function-spec`: 24 queries, 59 mutations, 22 actions, 4 HTTP actions), 1 cron, plus schema and validators, internal functions, Node actions, scheduled functions, file storage, realtime queries, Convex Auth and static hosting. The board, a case and the public ledger are ordinary reactive queries — nothing polls.
+- **Auth:** Convex Auth with a custom Email provider. **No password is ever stored:** the sign-in code is sent from the agent's own AgentMail inbox, which is the same inbox the agent uses to act for itself. Judges need no account for `/preview` or `/#check`.
+- **OpenAI:** `openai/gpt-5.6-luna` via OpenRouter. **One file calls the model** — `convex/agent/model.ts` — with exactly two named jobs: `extractCase` (read a forwarded email into a case) and `classifyReply` (read what a human replied). Everything the demo depends on is deterministic code, so the same email always produces the same case, and the policy reader has no model in it at all.
+- **Firecrawl:** the v2 API doing three jobs. `search` and `scrape` find and read a company's own refund pages (`convex/browser/research.ts`, `convex/policy.ts`). **`/interact` with `interactiveLiveViewUrl`** is the boundary the product is built on: the agent drives a real browser to register itself on a portal, and when a site needs a password the agent must not have, the same live session is handed to a human on their phone through a one-tap link in an email. Named persistent profiles keep that login alive for later visits.
+- **AgentMail:** the agent's identity and its working surface. Its own inboxes; inbound mail over **Svix-signed webhooks**, verified with Web Crypto against Svix's own published test vector because HTTP actions do not run in Node (`convex/lib/svix.ts`); **drafts as the approval gate** — anything binding is written and held, and there is no code path that sends it without a human reply; attachments in (a photographed receipt) and out; and the sign-in codes that replace a password.
+- **Tests:** `backend/experiments/` — 41 refund-deadline extraction cases, 11 real OTP messages plus 5 decoys that must be ignored, and 13 cases for the rule that decides whether a company moved its own deadline. Every one of them is a page or a message that the code got wrong first.
 - **Started:** 2026-09-12T09:10:36Z
-- **Last updated:** 2026-09-20T19:30:00Z
+- **Last updated:** 2026-09-20T20:00:00Z
 
 ## Log
 
